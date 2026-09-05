@@ -33,6 +33,7 @@
             <span class="prototype-label">审批决定</span>
             <h2>通过或驳回</h2>
             <form method="post" action="{{ url_for('approval_decision', booking_id=booking.id) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <div class="form-row">
                     <label for="comment">审批意见</label>
                     <textarea id="comment" name="comment" rows="4" placeholder="通过可不填；驳回必须说明原因"></textarea>

@@ -21,8 +21,18 @@ def client(app):
     return app.test_client()
 
 
+def post_with_csrf(client, path, data=None, **kwargs):
+    """模拟浏览器携带页面中的CSRF令牌提交表单。"""
+    with client.session_transaction() as browser_session:
+        token = browser_session.setdefault("_csrf_token", "test-csrf-token")
+    form_data = dict(data or {})
+    form_data["_csrf_token"] = token
+    return client.post(path, data=form_data, **kwargs)
+
+
 def login(client, username="20260001", password="123456"):
-    return client.post(
+    return post_with_csrf(
+        client,
         "/login",
         data={"username": username, "password": password},
         follow_redirects=True,
@@ -41,7 +51,7 @@ def submit_booking(client, slot_id, **overrides):
         "contact": "13800000001",
     }
     data.update(overrides)
-    return client.post(f"/reserve/{slot_id}", data=data, follow_redirects=True)
+    return post_with_csrf(client, f"/reserve/{slot_id}", data=data, follow_redirects=True)
 
 
 def test_home_page_is_available(client):
@@ -49,7 +59,7 @@ def test_home_page_is_available(client):
 
     assert response.status_code == 200
     assert "校园实验室预约与审批系统" in response.get_data(as_text=True)
-    assert "dev-v0.5" in response.get_data(as_text=True)
+    assert "dev-v0.6" in response.get_data(as_text=True)
 
 
 def test_database_is_seeded(app):
@@ -140,7 +150,11 @@ def test_student_can_cancel_own_booking(app, client):
     with app.app_context():
         booking_id = db.session.scalar(select(Booking.id))
 
-    response = client.post(f"/bookings/{booking_id}/cancel", follow_redirects=True)
+    response = post_with_csrf(
+        client,
+        f"/bookings/{booking_id}/cancel",
+        follow_redirects=True,
+    )
 
     assert "已取消" in response.get_data(as_text=True)
     with app.app_context():
@@ -156,7 +170,7 @@ def test_student_cannot_view_another_students_booking(app, client):
     submit_booking(client, first_slot_id(app))
     with app.app_context():
         booking_id = db.session.scalar(select(Booking.id))
-    client.post("/logout")
+    post_with_csrf(client, "/logout")
     login(client, username="20260018")
 
     assert client.get(f"/bookings/{booking_id}").status_code == 403
@@ -198,14 +212,15 @@ def test_approver_can_approve_pending_booking(app, client):
     submit_booking(client, first_slot_id(app))
     with app.app_context():
         booking_id = db.session.scalar(select(Booking.id))
-    client.post("/logout")
+    post_with_csrf(client, "/logout")
     login(client, username="T1001")
 
     queue_page = client.get("/approvals").get_data(as_text=True)
     assert "数字媒体课程作品展示" not in queue_page
     assert "张晨" in queue_page
 
-    response = client.post(
+    response = post_with_csrf(
+        client,
         f"/approvals/{booking_id}/decision",
         data={"decision": "approve", "comment": "信息完整，同意使用。"},
         follow_redirects=True,
@@ -230,10 +245,11 @@ def test_rejection_requires_a_reason(app, client):
     submit_booking(client, first_slot_id(app))
     with app.app_context():
         booking_id = db.session.scalar(select(Booking.id))
-    client.post("/logout")
+    post_with_csrf(client, "/logout")
     login(client, username="T1001")
 
-    response = client.post(
+    response = post_with_csrf(
+        client,
         f"/approvals/{booking_id}/decision",
         data={"decision": "reject", "comment": "无"},
     )
@@ -255,14 +271,16 @@ def test_processed_booking_cannot_be_reviewed_twice(app, client):
     submit_booking(client, first_slot_id(app))
     with app.app_context():
         booking_id = db.session.scalar(select(Booking.id))
-    client.post("/logout")
+    post_with_csrf(client, "/logout")
     login(client, username="T1001")
-    client.post(
+    post_with_csrf(
+        client,
         f"/approvals/{booking_id}/decision",
         data={"decision": "approve", "comment": "同意"},
     )
 
-    assert client.post(
+    assert post_with_csrf(
+        client,
         f"/approvals/{booking_id}/decision",
         data={"decision": "reject", "comment": "重复操作"},
     ).status_code == 400
@@ -270,9 +288,30 @@ def test_processed_booking_cannot_be_reviewed_twice(app, client):
 
 def test_logout_clears_login_session(client):
     login(client)
-    client.post("/logout")
+    post_with_csrf(client, "/logout")
 
     assert client.get("/dashboard").status_code == 302
+
+
+def test_post_without_csrf_token_is_rejected(client):
+    response = client.post(
+        "/login",
+        data={"username": "20260001", "password": "123456"},
+    )
+
+    assert response.status_code == 400
+    assert "表单已过期或来源无效" in response.get_data(as_text=True)
+
+
+def test_custom_error_pages_explain_the_problem(app, client):
+    missing = client.get("/labs/999")
+    assert missing.status_code == 404
+    assert "没有找到这个页面" in missing.get_data(as_text=True)
+
+    login(client, username="T1001")
+    forbidden = client.get(f"/reserve/{first_slot_id(app)}")
+    assert forbidden.status_code == 403
+    assert "当前账号不能访问" in forbidden.get_data(as_text=True)
 
 
 @pytest.mark.parametrize("path", ["/", "/labs"])

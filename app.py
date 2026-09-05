@@ -1,15 +1,18 @@
 from pathlib import Path
 from functools import wraps
 from datetime import date, datetime, time, timedelta
+from hmac import compare_digest
+from secrets import token_urlsafe
 from uuid import uuid4
 
 from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
 from sqlalchemy import func, inspect, or_, select, text
 
 from models import Booking, BookingHistory, Lab, TimeSlot, User, db
+from validators import validate_approval_form, validate_booking_form
 
 
-VERSION = "dev-v0.5"
+VERSION = "dev-v0.6"
 
 LAB_SEED_DATA = [
     {
@@ -162,12 +165,19 @@ def role_required(*roles):
         @login_required
         def wrapped_view(**kwargs):
             if g.user.role not in roles:
-                abort(403)
+                abort(403, description="当前账号没有访问这个功能的权限。")
             return view(**kwargs)
 
         return wrapped_view
 
     return decorator
+
+
+def csrf_token():
+    """为当前浏览器会话生成一个表单防伪令牌。"""
+    if "_csrf_token" not in session:
+        session["_csrf_token"] = token_urlsafe(24)
+    return session["_csrf_token"]
 
 
 def create_app(test_config=None):
@@ -177,6 +187,9 @@ def create_app(test_config=None):
     app.config.from_mapping(
         TESTING=False,
         SECRET_KEY="development-course-secret-key",
+        MAX_CONTENT_LENGTH=1024 * 1024,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{database_path.as_posix()}",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
@@ -196,9 +209,17 @@ def create_app(test_config=None):
         user_id = session.get("user_id")
         g.user = db.session.get(User, user_id) if user_id else None
 
+    @app.before_request
+    def protect_post_requests():
+        if request.method == "POST":
+            expected = session.get("_csrf_token", "")
+            submitted = request.form.get("_csrf_token", "")
+            if not expected or not compare_digest(expected, submitted):
+                abort(400, description="表单已过期或来源无效，请返回页面后重新操作。")
+
     @app.context_processor
     def inject_version():
-        return {"app_version": VERSION}
+        return {"app_version": VERSION, "csrf_token": csrf_token}
 
     @app.get("/")
     def index():
@@ -303,35 +324,17 @@ def create_app(test_config=None):
         if slot is None:
             abort(404)
         if not slot.is_open or not slot.lab.is_available or find_active_booking(slot.id):
-            abort(400)
+            abort(400, description="该时段当前不可预约，请返回实验室详情重新选择。")
 
-        form_data = {
-            "purpose": request.form.get("purpose", "").strip(),
-            "attendee_count": request.form.get("attendee_count", "").strip(),
-            "contact": request.form.get("contact", "").strip(),
-        }
-        errors = []
+        form_data, errors = validate_booking_form(request.form, slot.lab.capacity)
         if request.method == "POST":
-            if len(form_data["purpose"]) < 5:
-                errors.append("使用目的至少填写5个字。")
-
-            try:
-                attendee_count = int(form_data["attendee_count"])
-            except ValueError:
-                attendee_count = 0
-            if attendee_count < 1 or attendee_count > slot.lab.capacity:
-                errors.append(f"参加人数应在1至{slot.lab.capacity}人之间。")
-
-            if len(form_data["contact"]) < 6:
-                errors.append("请填写有效的联系方式。")
-
             if not errors:
                 booking = Booking(
                     booking_no=f"YY{datetime.now():%Y%m%d}-{uuid4().hex[:8].upper()}",
                     user=g.user,
                     time_slot=slot,
                     purpose=form_data["purpose"],
-                    attendee_count=attendee_count,
+                    attendee_count=form_data["attendee_count_value"],
                     contact=form_data["contact"],
                 )
                 db.session.add(booking)
@@ -371,7 +374,7 @@ def create_app(test_config=None):
         if booking is None:
             abort(404)
         if booking.user_id != g.user.id:
-            abort(403)
+            abort(403, description="只能查看自己提交的预约。")
         return render_template("booking_detail.html", booking=booking)
 
     @app.post("/bookings/<int:booking_id>/cancel")
@@ -381,9 +384,9 @@ def create_app(test_config=None):
         if booking is None:
             abort(404)
         if booking.user_id != g.user.id:
-            abort(403)
+            abort(403, description="只能取消自己提交的预约。")
         if not booking.can_cancel:
-            abort(400)
+            abort(400, description="当前状态的预约不能取消。")
 
         booking.status = "CANCELLED"
         booking.cancelled_at = datetime.now()
@@ -429,14 +432,12 @@ def create_app(test_config=None):
         if booking is None:
             abort(404)
         if booking.status != "PENDING":
-            abort(400)
+            abort(400, description="这条申请已经处理，不能重复审批。")
 
-        decision = request.form.get("decision", "")
-        comment = request.form.get("comment", "").strip()
-        if decision not in {"approve", "reject"}:
-            abort(400)
-        if decision == "reject" and len(comment) < 3:
-            flash("驳回时请填写至少3个字的原因。", "error")
+        decision, comment, errors = validate_approval_form(request.form)
+        if errors:
+            for error in errors:
+                flash(error, "error")
             return render_template("approval_detail.html", booking=booking), 400
 
         new_status = "APPROVED" if decision == "approve" else "REJECTED"
@@ -457,6 +458,18 @@ def create_app(test_config=None):
 
         flash(f"预约{booking.booking_no}已{booking.status_label}。", "success")
         return redirect(url_for("approval_detail", booking_id=booking.id))
+
+    @app.errorhandler(400)
+    def bad_request(error):
+        return render_template("errors/400.html", error=error), 400
+
+    @app.errorhandler(403)
+    def forbidden(error):
+        return render_template("errors/403.html", error=error), 403
+
+    @app.errorhandler(404)
+    def not_found(error):
+        return render_template("errors/404.html", error=error), 404
 
     return app
 

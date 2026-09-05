@@ -6,6 +6,7 @@
 <section class="section auth-section">
     <div class="container auth-layout">
         <form class="reservation-form" method="post" action="{{ url_for('login') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <p class="eyebrow">身份验证</p>
             <h1>登录系统</h1>
             <p class="form-intro">使用下方任一课堂演示账号，观察不同角色看到的工作台。</p>

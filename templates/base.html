@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="version-strip">
-        开发教学版 {{ app_version }} · 预约审批完整流程
+        开发教学版 {{ app_version }} · 自动测试与质量加固
     </div>
 
     <header class="site-header">
@@ -36,6 +36,7 @@
                 {% if g.user %}
                 <span class="user-chip"><strong>{{ g.user.display_name }}</strong><small>{{ g.user.role_name }}</small></span>
                 <form class="inline-form" method="post" action="{{ url_for('logout') }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <button class="text-button" type="submit">退出</button>
                 </form>
                 {% else %}
