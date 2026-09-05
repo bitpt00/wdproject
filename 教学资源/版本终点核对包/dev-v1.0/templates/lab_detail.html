@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lab.name }}｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div class="container">
+        <a class="back-link" href="{{ url_for('lab_list') }}">← 返回实验室列表</a>
+        <p class="eyebrow">LAB-{{ "%03d"|format(lab.id) }}</p>
+        <h1>{{ lab.name }}</h1>
+        <p>{{ lab.description }}</p>
+    </div>
+</section>
+
+<section class="section compact-top">
+    <div class="container detail-layout">
+        <article class="detail-card">
+            <div class="lab-card-top">
+                <h2>实验室信息</h2>
+                <span class="status {{ 'open' if lab.is_available else 'closed' }}">{{ lab.status }}</span>
+            </div>
+            <dl class="detail-list">
+                <div><dt>位置</dt><dd>{{ lab.location }}</dd></div>
+                <div><dt>可容纳人数</dt><dd>{{ lab.capacity }}人</dd></div>
+                <div><dt>主要设备</dt><dd>{{ lab.equipment }}</dd></div>
+            </dl>
+            <h2 class="subheading">开放时段</h2>
+            <div class="slot-list">
+                {% for slot in time_slots %}
+                <div class="slot-row">
+                    <div>
+                        <strong>{{ slot.date_label }}</strong>
+                        <span>{{ slot.time_label }}</span>
+                    </div>
+                    {% if slot.is_available %}
+                        {% if g.user and g.user.role == 'student' %}
+                        <a class="button small" href="{{ url_for('reserve', slot_id=slot.id) }}">选择时段</a>
+                        {% elif not g.user %}
+                        <a class="text-link" href="{{ url_for('login') }}">登录后预约</a>
+                        {% else %}
+                        <span class="state available">当前空闲</span>
+                        {% endif %}
+                    {% else %}
+                    <span class="state later">不可预约</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="text-muted">暂时没有开放时段。</p>
+                {% endfor %}
+            </div>
+        </article>
+        <aside class="stage-panel">
+            <span class="prototype-label">预约规则</span>
+            <h2>先选资源，再填申请</h2>
+            <p>每条时段属于一间实验室；已有待审批或已通过申请的时段，不能再被重复预约。</p>
+        </aside>
+    </div>
+</section>
+{% endblock %}

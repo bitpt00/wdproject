@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}预约详情｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div class="container">
+        <a class="back-link" href="{{ url_for('my_bookings') }}">← 返回我的预约</a>
+        <p class="eyebrow">{{ booking.booking_no }}</p>
+        <h1>预约详情</h1>
+        <p>创建于 {{ booking.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+    </div>
+</section>
+
+<section class="section compact-top">
+    <div class="container detail-layout">
+        <article class="detail-card">
+            <div class="lab-card-top">
+                <h2>{{ booking.time_slot.lab.name }}</h2>
+                <span class="status {{ booking.status_class }}">{{ booking.status_label }}</span>
+            </div>
+            <dl class="detail-list">
+                <div><dt>预约时段</dt><dd>{{ booking.time_slot.date_label }} {{ booking.time_slot.time_label }}</dd></div>
+                <div><dt>使用目的</dt><dd>{{ booking.purpose }}</dd></div>
+                <div><dt>参加人数</dt><dd>{{ booking.attendee_count }}人</dd></div>
+                <div><dt>联系方式</dt><dd>{{ booking.contact }}</dd></div>
+                {% if booking.reviewer %}
+                <div><dt>审批教师</dt><dd>{{ booking.reviewer.display_name }}</dd></div>
+                <div><dt>审批意见</dt><dd>{{ booking.review_comment }}</dd></div>
+                {% endif %}
+            </dl>
+            {% if booking.can_cancel %}
+            <form method="post" action="{{ url_for('cancel_booking', booking_id=booking.id) }}" onsubmit="return confirm('确定取消这条预约吗？')">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <button class="button danger" type="submit">取消预约</button>
+            </form>
+            {% endif %}
+        </article>
+        <aside class="stage-panel">
+            <span class="prototype-label">状态说明</span>
+            <h2>{{ booking.status_label }}</h2>
+            {% if booking.status == 'PENDING' %}<p>申请已保存，等待审批教师处理。</p>{% endif %}
+            {% if booking.status == 'CANCELLED' %}<p>申请已由学生取消，该时段可以重新预约。</p>{% endif %}
+            {% if booking.status == 'APPROVED' %}<p>申请已通过，仍可在使用前取消。</p>{% endif %}
+            {% if booking.status == 'REJECTED' %}<p>申请未通过，当前记录保留用于查询。</p>{% endif %}
+            <div class="timeline">
+                {% for history in booking.histories %}
+                <div class="timeline-item">
+                    <strong>{{ history.to_status_label }}</strong>
+                    <span>{{ history.created_at.strftime('%m-%d %H:%M') }} · {{ history.actor.display_name }}</span>
+                    <p>{{ history.note }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </aside>
+    </div>
+</section>
+{% endblock %}

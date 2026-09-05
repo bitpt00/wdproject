@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}请求无法处理｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="error-page">
+    <div class="container error-card">
+        <span class="error-code">400</span>
+        <h1>这次操作无法完成</h1>
+        <p>{{ error.description or '提交的数据不符合要求，请检查后重试。' }}</p>
+        <a class="button primary" href="{{ request.referrer or url_for('index') }}">返回上一页</a>
+    </div>
+</section>
+{% endblock %}

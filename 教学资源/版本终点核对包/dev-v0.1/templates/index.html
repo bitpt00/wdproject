@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}首页｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="container hero-grid">
+        <div>
+            <p class="eyebrow">校园实验资源统一预约</p>
+            <h1>校园实验室预约与审批系统</h1>
+            <p class="hero-copy">
+                学生查询实验室并提交预约，教师处理审批，管理员维护实验室状态。
+                本版本先完成可运行的网站骨架和主要页面。
+            </p>
+            <div class="hero-actions">
+                <a class="button primary" href="{{ url_for('lab_list') }}">浏览实验室</a>
+                <a class="button secondary" href="{{ url_for('reservation_form') }}">查看预约表单</a>
+            </div>
+        </div>
+        <div class="prototype-card">
+            <span class="prototype-label">当前版本</span>
+            <strong>{{ app_version }}</strong>
+            <p>页面和导航已经可以运行，数据仍是程序中的示例内容。</p>
+            <ul class="check-list">
+                <li>Flask应用可以启动</li>
+                <li>路由能够打开不同页面</li>
+                <li>Jinja2模板可以复用页面布局</li>
+                <li>预约数据暂时不会保存</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-heading">
+            <p class="eyebrow">主要业务</p>
+            <h2>系统准备支持的三类操作</h2>
+        </div>
+        <div class="feature-grid">
+            <article class="feature-card">
+                <span class="step-number">01</span>
+                <h3>查询实验室</h3>
+                <p>查看实验室位置、容量、主要设备和当前状态。</p>
+                <span class="state available">本版本可查看</span>
+            </article>
+            <article class="feature-card">
+                <span class="step-number">02</span>
+                <h3>提交预约</h3>
+                <p>选择实验室、日期和时间，填写用途及参加人数。</p>
+                <span class="state prototype">本版本仅展示表单</span>
+            </article>
+            <article class="feature-card">
+                <span class="step-number">03</span>
+                <h3>审批与管理</h3>
+                <p>教师审批申请，管理员维护实验室的可用状态。</p>
+                <span class="state later">后续版本实现</span>
+            </article>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
