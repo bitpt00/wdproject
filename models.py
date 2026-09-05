@@ -18,7 +18,12 @@ class User(db.Model):
     role = db.Column(db.String(20), index=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
 
-    bookings = db.relationship("Booking", back_populates="user", lazy="select")
+    bookings = db.relationship(
+        "Booking",
+        back_populates="user",
+        foreign_keys="Booking.user_id",
+        lazy="select",
+    )
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -109,11 +114,21 @@ class Booking(db.Model):
     attendee_count = db.Column(db.Integer, nullable=False)
     contact = db.Column(db.String(50), nullable=False)
     status = db.Column(db.String(20), index=True, nullable=False, default="PENDING")
+    review_comment = db.Column(db.String(300))
+    reviewed_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    reviewed_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
     cancelled_at = db.Column(db.DateTime)
 
-    user = db.relationship("User", back_populates="bookings")
+    user = db.relationship("User", back_populates="bookings", foreign_keys=[user_id])
+    reviewer = db.relationship("User", foreign_keys=[reviewed_by_id])
     time_slot = db.relationship("TimeSlot", back_populates="bookings")
+    histories = db.relationship(
+        "BookingHistory",
+        back_populates="booking",
+        cascade="all, delete-orphan",
+        order_by="BookingHistory.created_at.desc()",
+    )
 
     @property
     def status_label(self):
@@ -136,3 +151,29 @@ class Booking(db.Model):
     @property
     def can_cancel(self):
         return self.status in {"PENDING", "APPROVED"}
+
+
+class BookingHistory(db.Model):
+    """保存预约状态的每一次变化，便于追踪审批过程。"""
+
+    __tablename__ = "booking_histories"
+
+    id = db.Column(db.Integer, primary_key=True)
+    booking_id = db.Column(db.Integer, db.ForeignKey("bookings.id"), index=True, nullable=False)
+    from_status = db.Column(db.String(20))
+    to_status = db.Column(db.String(20), nullable=False)
+    actor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    note = db.Column(db.String(300), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    booking = db.relationship("Booking", back_populates="histories")
+    actor = db.relationship("User", foreign_keys=[actor_id])
+
+    @property
+    def to_status_label(self):
+        return {
+            "PENDING": "待审批",
+            "APPROVED": "已通过",
+            "REJECTED": "已驳回",
+            "CANCELLED": "已取消",
+        }.get(self.to_status, self.to_status)

@@ -708,6 +708,74 @@ h2 {
     flex-shrink: 0;
 }
 
+.status-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.status-tabs a {
+    padding: 9px 15px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+    background: #ffffff;
+    text-decoration: none;
+}
+
+.status-tabs a.active {
+    border-color: var(--blue);
+    color: #ffffff;
+    background: var(--blue);
+}
+
+.decision-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.timeline {
+    margin-top: 26px;
+    padding-top: 6px;
+    border-top: 1px solid var(--line);
+}
+
+.timeline-item {
+    position: relative;
+    padding: 16px 0 0 18px;
+    border-left: 2px solid #d0d5dd;
+}
+
+.timeline-item::before {
+    position: absolute;
+    top: 21px;
+    left: -6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--blue);
+    content: "";
+}
+
+.timeline-item strong,
+.timeline-item span {
+    display: block;
+}
+
+.timeline-item span {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.timeline-item p {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+}
+
 .form-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 340px;
@@ -869,6 +937,10 @@ h2 {
     .slot-row {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .decision-actions {
+        grid-template-columns: 1fr;
     }
 
     .booking-actions {

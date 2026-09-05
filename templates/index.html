@@ -10,7 +10,7 @@
             <h1>校园实验室预约与审批系统</h1>
             <p class="hero-copy">
                 学生查询实验室并提交预约，教师处理审批，管理员维护实验室状态。
-                本版本已经打通学生从选择时段、提交申请，到查看和取消预约的完整过程。
+                本版本连接学生申请与教师审批，预约从提交、通过或驳回到结果查询形成完整流程。
             </p>
             <div class="hero-actions">
                 <a class="button primary" href="{{ url_for('lab_list') }}">浏览实验室</a>
@@ -24,12 +24,12 @@
         <div class="prototype-card">
             <span class="prototype-label">当前版本</span>
             <strong>{{ app_version }}</strong>
-            <p>学生提交的数据会真正写入SQLite，并在“我的预约”中持续可见。</p>
+            <p>同一条预约在不同角色之间流转，每次状态变化都会留下历史记录。</p>
             <ul class="check-list">
-                <li>从实验室中选择开放时段</li>
-                <li>校验用途、人数和联系方式</li>
-                <li>生成唯一预约编号并保存</li>
-                <li>学生可查看和取消自己的申请</li>
+                <li>学生提交后进入待审批队列</li>
+                <li>审批教师查看完整申请内容</li>
+                <li>教师通过或填写原因后驳回</li>
+                <li>学生查看结果和状态变化历史</li>
             </ul>
         </div>
     </div>
@@ -58,7 +58,7 @@
                 <span class="step-number">03</span>
                 <h3>审批与管理</h3>
                 <p>教师审批申请，管理员维护实验室的可用状态。</p>
-                <span class="state later">dev-v0.5加入教师审批</span>
+                <span class="state available">申请与审批已贯通</span>
             </article>
         </div>
     </div>

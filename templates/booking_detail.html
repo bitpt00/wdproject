@@ -24,6 +24,10 @@
                 <div><dt>使用目的</dt><dd>{{ booking.purpose }}</dd></div>
                 <div><dt>参加人数</dt><dd>{{ booking.attendee_count }}人</dd></div>
                 <div><dt>联系方式</dt><dd>{{ booking.contact }}</dd></div>
+                {% if booking.reviewer %}
+                <div><dt>审批教师</dt><dd>{{ booking.reviewer.display_name }}</dd></div>
+                <div><dt>审批意见</dt><dd>{{ booking.review_comment }}</dd></div>
+                {% endif %}
             </dl>
             {% if booking.can_cancel %}
             <form method="post" action="{{ url_for('cancel_booking', booking_id=booking.id) }}" onsubmit="return confirm('确定取消这条预约吗？')">
@@ -38,6 +42,15 @@
             {% if booking.status == 'CANCELLED' %}<p>申请已由学生取消，该时段可以重新预约。</p>{% endif %}
             {% if booking.status == 'APPROVED' %}<p>申请已通过，仍可在使用前取消。</p>{% endif %}
             {% if booking.status == 'REJECTED' %}<p>申请未通过，当前记录保留用于查询。</p>{% endif %}
+            <div class="timeline">
+                {% for history in booking.histories %}
+                <div class="timeline-item">
+                    <strong>{{ history.to_status_label }}</strong>
+                    <span>{{ history.created_at.strftime('%m-%d %H:%M') }} · {{ history.actor.display_name }}</span>
+                    <p>{{ history.note }}</p>
+                </div>
+                {% endfor %}
+            </div>
         </aside>
     </div>
 </section>

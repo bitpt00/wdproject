@@ -4,12 +4,12 @@ from datetime import date, datetime, time, timedelta
 from uuid import uuid4
 
 from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, inspect, or_, select, text
 
-from models import Booking, Lab, TimeSlot, User, db
+from models import Booking, BookingHistory, Lab, TimeSlot, User, db
 
 
-VERSION = "dev-v0.4"
+VERSION = "dev-v0.5"
 
 LAB_SEED_DATA = [
     {
@@ -126,6 +126,25 @@ def find_active_booking(slot_id):
     )
 
 
+def upgrade_database_schema():
+    """让从dev-v0.4升级的本地SQLite数据库补齐审批字段。"""
+    inspector = inspect(db.engine)
+    if "bookings" not in inspector.get_table_names():
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("bookings")}
+    additions = {
+        "review_comment": "VARCHAR(300)",
+        "reviewed_by_id": "INTEGER",
+        "reviewed_at": "DATETIME",
+    }
+    missing = [(name, data_type) for name, data_type in additions.items() if name not in columns]
+    if missing:
+        with db.engine.begin() as connection:
+            for name, data_type in missing:
+                connection.execute(text(f"ALTER TABLE bookings ADD COLUMN {name} {data_type}"))
+
+
 def login_required(view):
     @wraps(view)
     def wrapped_view(**kwargs):
@@ -169,6 +188,7 @@ def create_app(test_config=None):
     db.init_app(app)
     with app.app_context():
         db.create_all()
+        upgrade_database_schema()
         seed_database()
 
     @app.before_request
@@ -223,11 +243,20 @@ def create_app(test_config=None):
     @login_required
     def dashboard():
         my_booking_count = 0
+        pending_count = 0
         if g.user.role == "student":
             my_booking_count = db.session.scalar(
                 select(func.count()).select_from(Booking).where(Booking.user_id == g.user.id)
             )
-        return render_template("dashboard.html", my_booking_count=my_booking_count)
+        elif g.user.role == "approver":
+            pending_count = db.session.scalar(
+                select(func.count()).select_from(Booking).where(Booking.status == "PENDING")
+            )
+        return render_template(
+            "dashboard.html",
+            my_booking_count=my_booking_count,
+            pending_count=pending_count,
+        )
 
     @app.get("/labs")
     def lab_list():
@@ -306,6 +335,16 @@ def create_app(test_config=None):
                     contact=form_data["contact"],
                 )
                 db.session.add(booking)
+                db.session.flush()
+                db.session.add(
+                    BookingHistory(
+                        booking=booking,
+                        actor=g.user,
+                        from_status=None,
+                        to_status="PENDING",
+                        note="学生提交预约申请。",
+                    )
+                )
                 db.session.commit()
                 flash(f"预约{booking.booking_no}已提交，等待教师审批。", "success")
                 return redirect(url_for("booking_detail", booking_id=booking.id))
@@ -348,9 +387,76 @@ def create_app(test_config=None):
 
         booking.status = "CANCELLED"
         booking.cancelled_at = datetime.now()
+        db.session.add(
+            BookingHistory(
+                booking=booking,
+                actor=g.user,
+                from_status="PENDING" if booking.reviewed_at is None else "APPROVED",
+                to_status="CANCELLED",
+                note="学生取消预约。",
+            )
+        )
         db.session.commit()
         flash(f"预约{booking.booking_no}已取消。", "success")
         return redirect(url_for("booking_detail", booking_id=booking.id))
+
+    @app.get("/approvals")
+    @role_required("approver")
+    def approvals():
+        status = request.args.get("status", "PENDING")
+        allowed_statuses = {"PENDING", "APPROVED", "REJECTED", "CANCELLED", "ALL"}
+        if status not in allowed_statuses:
+            status = "PENDING"
+
+        statement = select(Booking).order_by(Booking.created_at.desc())
+        if status != "ALL":
+            statement = statement.where(Booking.status == status)
+        bookings = db.session.scalars(statement).all()
+        return render_template("approvals.html", bookings=bookings, selected_status=status)
+
+    @app.get("/approvals/<int:booking_id>")
+    @role_required("approver")
+    def approval_detail(booking_id):
+        booking = db.session.get(Booking, booking_id)
+        if booking is None:
+            abort(404)
+        return render_template("approval_detail.html", booking=booking)
+
+    @app.post("/approvals/<int:booking_id>/decision")
+    @role_required("approver")
+    def approval_decision(booking_id):
+        booking = db.session.get(Booking, booking_id)
+        if booking is None:
+            abort(404)
+        if booking.status != "PENDING":
+            abort(400)
+
+        decision = request.form.get("decision", "")
+        comment = request.form.get("comment", "").strip()
+        if decision not in {"approve", "reject"}:
+            abort(400)
+        if decision == "reject" and len(comment) < 3:
+            flash("驳回时请填写至少3个字的原因。", "error")
+            return render_template("approval_detail.html", booking=booking), 400
+
+        new_status = "APPROVED" if decision == "approve" else "REJECTED"
+        booking.status = new_status
+        booking.review_comment = comment or "审批通过。"
+        booking.reviewer = g.user
+        booking.reviewed_at = datetime.now()
+        db.session.add(
+            BookingHistory(
+                booking=booking,
+                actor=g.user,
+                from_status="PENDING",
+                to_status=new_status,
+                note=booking.review_comment,
+            )
+        )
+        db.session.commit()
+
+        flash(f"预约{booking.booking_no}已{booking.status_label}。", "success")
+        return redirect(url_for("approval_detail", booking_id=booking.id))
 
     return app
 

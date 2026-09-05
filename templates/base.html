@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="version-strip">
-        开发教学版 {{ app_version }} · 学生预约完整闭环
+        开发教学版 {{ app_version }} · 预约审批完整流程
     </div>
 
     <header class="site-header">
@@ -27,6 +27,8 @@
                 <a class="{{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">工作台</a>
                 {% if g.user.role == 'student' %}
                 <a class="{{ 'active' if request.endpoint in ['my_bookings', 'booking_detail', 'reserve'] else '' }}" href="{{ url_for('my_bookings') }}">我的预约</a>
+                {% elif g.user.role == 'approver' %}
+                <a class="{{ 'active' if request.endpoint in ['approvals', 'approval_detail'] else '' }}" href="{{ url_for('approvals') }}">预约审批</a>
                 {% endif %}
                 {% endif %}
             </nav>
