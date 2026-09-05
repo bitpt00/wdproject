@@ -55,12 +55,8 @@
                 </div>
             </dl>
             <div class="card-actions">
-                <a class="text-link" href="{{ url_for('lab_detail', lab_id=lab.id) }}">查看详情</a>
-                {% if lab.is_available %}
-                <a class="text-link" href="{{ url_for('reservation_form', lab=lab.id) }}">填写预约信息</a>
-                {% else %}
-                <span class="text-muted">当前不能选择</span>
-                {% endif %}
+                <a class="text-link" href="{{ url_for('lab_detail', lab_id=lab.id) }}">查看详情与时段</a>
+                {% if not lab.is_available %}<span class="text-muted">当前不能预约</span>{% endif %}
             </div>
         </article>
         {% else %}

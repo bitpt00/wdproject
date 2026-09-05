@@ -1,13 +1,15 @@
 from pathlib import Path
 from functools import wraps
+from datetime import date, datetime, time, timedelta
+from uuid import uuid4
 
 from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
 from sqlalchemy import func, or_, select
 
-from models import Lab, User, db
+from models import Booking, Lab, TimeSlot, User, db
 
 
-VERSION = "dev-v0.3"
+VERSION = "dev-v0.4"
 
 LAB_SEED_DATA = [
     {
@@ -52,6 +54,12 @@ USER_SEED_DATA = [
         "role": "student",
     },
     {
+        "username": "20260018",
+        "display_name": "林悦",
+        "department": "视觉传达专业",
+        "role": "student",
+    },
+    {
         "username": "T1001",
         "display_name": "李老师",
         "department": "软件工程教研室",
@@ -70,17 +78,52 @@ def seed_database():
     """数据库为空时写入课堂统一使用的样例数据。"""
     lab_count = db.session.scalar(select(func.count()).select_from(Lab))
     if lab_count == 0:
-        db.session.add_all(Lab(**data) for data in LAB_SEED_DATA)
+        labs = [Lab(**data) for data in LAB_SEED_DATA]
+        db.session.add_all(labs)
+        db.session.flush()
+    else:
+        labs = db.session.scalars(select(Lab).order_by(Lab.id)).all()
 
-    user_count = db.session.scalar(select(func.count()).select_from(User))
-    if user_count == 0:
-        for data in USER_SEED_DATA:
+    existing_usernames = set(db.session.scalars(select(User.username)).all())
+    users_added = False
+    for data in USER_SEED_DATA:
+        if data["username"] not in existing_usernames:
             user = User(**data)
             user.set_password("123456")
             db.session.add(user)
+            users_added = True
 
-    if lab_count == 0 or user_count == 0:
+    slot_count = db.session.scalar(select(func.count()).select_from(TimeSlot))
+    if slot_count == 0:
+        tomorrow = date.today() + timedelta(days=1)
+        slot_specs = [
+            (tomorrow, time(8, 0), time(10, 0)),
+            (tomorrow, time(10, 10), time(12, 10)),
+            (tomorrow + timedelta(days=1), time(14, 0), time(16, 0)),
+            (tomorrow + timedelta(days=2), time(8, 0), time(10, 0)),
+        ]
+        for lab in labs:
+            for booking_date, start_time, end_time in slot_specs:
+                db.session.add(
+                    TimeSlot(
+                        lab=lab,
+                        booking_date=booking_date,
+                        start_time=start_time,
+                        end_time=end_time,
+                    )
+                )
+
+    if lab_count == 0 or users_added or slot_count == 0:
         db.session.commit()
+
+
+def find_active_booking(slot_id):
+    return db.session.scalar(
+        select(Booking).where(
+            Booking.time_slot_id == slot_id,
+            Booking.status.in_(["PENDING", "APPROVED"]),
+        )
+    )
 
 
 def login_required(view):
@@ -179,7 +222,12 @@ def create_app(test_config=None):
     @app.get("/dashboard")
     @login_required
     def dashboard():
-        return render_template("dashboard.html")
+        my_booking_count = 0
+        if g.user.role == "student":
+            my_booking_count = db.session.scalar(
+                select(func.count()).select_from(Booking).where(Booking.user_id == g.user.id)
+            )
+        return render_template("dashboard.html", my_booking_count=my_booking_count)
 
     @app.get("/labs")
     def lab_list():
@@ -212,20 +260,97 @@ def create_app(test_config=None):
         lab = db.session.get(Lab, lab_id)
         if lab is None:
             abort(404)
-        return render_template("lab_detail.html", lab=lab)
-
-    @app.get("/reservations/new")
-    @role_required("student")
-    def reservation_form():
-        selected_lab_id = request.args.get("lab", type=int)
-        labs = db.session.scalars(
-            select(Lab).where(Lab.status == "可预约").order_by(Lab.id)
+        future_slots = db.session.scalars(
+            select(TimeSlot)
+            .where(TimeSlot.lab_id == lab.id, TimeSlot.booking_date >= date.today())
+            .order_by(TimeSlot.booking_date, TimeSlot.start_time)
         ).all()
-        return render_template(
-            "reservation_form.html",
-            labs=labs,
-            selected_lab_id=selected_lab_id,
-        )
+        return render_template("lab_detail.html", lab=lab, time_slots=future_slots)
+
+    @app.route("/reserve/<int:slot_id>", methods=["GET", "POST"])
+    @role_required("student")
+    def reserve(slot_id):
+        slot = db.session.get(TimeSlot, slot_id)
+        if slot is None:
+            abort(404)
+        if not slot.is_open or not slot.lab.is_available or find_active_booking(slot.id):
+            abort(400)
+
+        form_data = {
+            "purpose": request.form.get("purpose", "").strip(),
+            "attendee_count": request.form.get("attendee_count", "").strip(),
+            "contact": request.form.get("contact", "").strip(),
+        }
+        errors = []
+        if request.method == "POST":
+            if len(form_data["purpose"]) < 5:
+                errors.append("使用目的至少填写5个字。")
+
+            try:
+                attendee_count = int(form_data["attendee_count"])
+            except ValueError:
+                attendee_count = 0
+            if attendee_count < 1 or attendee_count > slot.lab.capacity:
+                errors.append(f"参加人数应在1至{slot.lab.capacity}人之间。")
+
+            if len(form_data["contact"]) < 6:
+                errors.append("请填写有效的联系方式。")
+
+            if not errors:
+                booking = Booking(
+                    booking_no=f"YY{datetime.now():%Y%m%d}-{uuid4().hex[:8].upper()}",
+                    user=g.user,
+                    time_slot=slot,
+                    purpose=form_data["purpose"],
+                    attendee_count=attendee_count,
+                    contact=form_data["contact"],
+                )
+                db.session.add(booking)
+                db.session.commit()
+                flash(f"预约{booking.booking_no}已提交，等待教师审批。", "success")
+                return redirect(url_for("booking_detail", booking_id=booking.id))
+
+            for error in errors:
+                flash(error, "error")
+
+        return render_template("reserve.html", slot=slot, form_data=form_data)
+
+    @app.get("/my-bookings")
+    @role_required("student")
+    def my_bookings():
+        bookings = db.session.scalars(
+            select(Booking)
+            .where(Booking.user_id == g.user.id)
+            .order_by(Booking.created_at.desc())
+        ).all()
+        return render_template("my_bookings.html", bookings=bookings)
+
+    @app.get("/bookings/<int:booking_id>")
+    @role_required("student")
+    def booking_detail(booking_id):
+        booking = db.session.get(Booking, booking_id)
+        if booking is None:
+            abort(404)
+        if booking.user_id != g.user.id:
+            abort(403)
+        return render_template("booking_detail.html", booking=booking)
+
+    @app.post("/bookings/<int:booking_id>/cancel")
+    @role_required("student")
+    def cancel_booking(booking_id):
+        booking = db.session.get(Booking, booking_id)
+        if booking is None:
+            abort(404)
+        if booking.user_id != g.user.id:
+            abort(403)
+        if not booking.can_cancel:
+            abort(400)
+
+        booking.status = "CANCELLED"
+        booking.cancelled_at = datetime.now()
+        db.session.commit()
+        flash(f"预约{booking.booking_no}已取消。", "success")
+        return redirect(url_for("booking_detail", booking_id=booking.id))
 
     return app
 

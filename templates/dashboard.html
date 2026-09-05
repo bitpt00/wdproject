@@ -22,15 +22,15 @@
         </article>
         <article class="feature-card">
             <span class="step-number">02</span>
-            <h2>填写预约</h2>
-            <p>当前可以查看表单，dev-v0.4开放提交和取消功能。</p>
-            <a class="text-link" href="{{ url_for('reservation_form') }}">查看表单</a>
+            <h2>我的预约</h2>
+            <p>已经提交 {{ my_booking_count }} 条申请，可以查看状态或取消申请。</p>
+            <a class="text-link" href="{{ url_for('my_bookings') }}">查看我的预约</a>
         </article>
         {% elif g.user.role == 'approver' %}
         <article class="feature-card">
             <span class="step-number">01</span>
             <h2>审批队列</h2>
-            <p>角色权限已经就绪，dev-v0.5加入真正的待审批申请。</p>
+            <p>学生已经可以提交申请，dev-v0.5将在此加入真正的审批队列。</p>
             <span class="state prototype">功能尚未开放</span>
         </article>
         {% else %}
@@ -43,9 +43,9 @@
         {% endif %}
 
         <aside class="stage-panel">
-            <span class="prototype-label">权限观察点</span>
-            <h2>为什么菜单不同</h2>
-            <p>登录后，系统从会话读取用户，再根据用户表中的role字段决定能够访问的路由和看到的操作。</p>
+            <span class="prototype-label">dev-v0.4观察点</span>
+            <h2>数据如何走完一圈</h2>
+            <p>从页面表单进入路由，完成服务器端校验后写入预约表，再按当前登录用户查询并显示。</p>
         </aside>
     </div>
 </section>
