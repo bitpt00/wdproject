@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="version-strip">
-        开发教学版 {{ app_version }} · SQLite数据库与查询功能
+        开发教学版 {{ app_version }} · 用户登录与角色权限
     </div>
 
     <header class="site-header">
@@ -23,12 +23,36 @@
             <nav class="main-nav" aria-label="主要导航">
                 <a class="{{ 'active' if request.endpoint == 'index' else '' }}" href="{{ url_for('index') }}">首页</a>
                 <a class="{{ 'active' if request.endpoint in ['lab_list', 'lab_detail'] else '' }}" href="{{ url_for('lab_list') }}">实验室</a>
+                {% if g.user %}
+                <a class="{{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">工作台</a>
+                {% if g.user.role == 'student' %}
                 <a class="{{ 'active' if request.endpoint == 'reservation_form' else '' }}" href="{{ url_for('reservation_form') }}">预约申请</a>
+                {% endif %}
+                {% endif %}
             </nav>
+            <div class="user-area">
+                {% if g.user %}
+                <span class="user-chip"><strong>{{ g.user.display_name }}</strong><small>{{ g.user.role_name }}</small></span>
+                <form class="inline-form" method="post" action="{{ url_for('logout') }}">
+                    <button class="text-button" type="submit">退出</button>
+                </form>
+                {% else %}
+                <a class="button small" href="{{ url_for('login') }}">登录</a>
+                {% endif %}
+            </div>
         </div>
     </header>
 
     <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="container flash-stack">
+            {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
         {% block content %}{% endblock %}
     </main>
 

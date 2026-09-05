@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import select
 
 from app import LAB_SEED_DATA, create_app
-from models import Lab, db
+from models import Lab, User, db
 
 
 @pytest.fixture()
@@ -21,20 +21,31 @@ def client(app):
     return app.test_client()
 
 
+def login(client, username="20260001", password="123456"):
+    return client.post(
+        "/login",
+        data={"username": username, "password": password},
+        follow_redirects=True,
+    )
+
+
 def test_home_page_is_available(client):
     response = client.get("/")
 
     assert response.status_code == 200
     assert "校园实验室预约与审批系统" in response.get_data(as_text=True)
-    assert "dev-v0.2" in response.get_data(as_text=True)
+    assert "dev-v0.3" in response.get_data(as_text=True)
 
 
 def test_database_is_seeded(app):
     with app.app_context():
         labs = db.session.scalars(select(Lab).order_by(Lab.id)).all()
+        users = db.session.scalars(select(User).order_by(User.id)).all()
 
     assert len(labs) == len(LAB_SEED_DATA)
     assert labs[0].name == "软件工程实验室"
+    assert [user.role for user in users] == ["student", "approver", "admin"]
+    assert users[0].password_hash != "123456"
 
 
 def test_lab_page_shows_database_labs(client):
@@ -68,6 +79,7 @@ def test_unknown_lab_returns_404(client):
 
 
 def test_reservation_page_contains_required_fields(client):
+    login(client)
     response = client.get("/reservations/new?lab=2")
     page = response.get_data(as_text=True)
 
@@ -82,10 +94,48 @@ def test_reservation_page_contains_required_fields(client):
     assert "提交预约（后续版本开放）" in page
 
 
-@pytest.mark.parametrize("path", ["/", "/labs", "/reservations/new"])
+def test_student_can_login_and_see_student_dashboard(client):
+    response = login(client)
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "张晨，您好" in page
+    assert "学生工作台" in page
+    assert "填写预约" in page
+
+
+def test_invalid_password_does_not_create_session(client):
+    response = login(client, password="wrong-password")
+    page = response.get_data(as_text=True)
+
+    assert "账号或密码错误" in page
+    assert "登录系统" in page
+
+
+def test_anonymous_user_is_redirected_to_login(client):
+    response = client.get("/dashboard", follow_redirects=True)
+
+    assert "请先登录" in response.get_data(as_text=True)
+    assert "登录系统" in response.get_data(as_text=True)
+
+
+def test_approver_cannot_open_student_reservation_page(client):
+    login(client, username="T1001")
+
+    assert client.get("/reservations/new").status_code == 403
+
+
+def test_logout_clears_login_session(client):
+    login(client)
+    client.post("/logout")
+
+    assert client.get("/dashboard").status_code == 302
+
+
+@pytest.mark.parametrize("path", ["/", "/labs"])
 def test_navigation_is_visible_on_each_page(client, path):
     page = client.get(path).get_data(as_text=True)
 
     assert "首页" in page
     assert "实验室" in page
-    assert "预约申请" in page
+    assert "登录" in page

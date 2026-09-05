@@ -220,6 +220,12 @@ h2 {
     width: 100%;
 }
 
+.button.small {
+    padding: 9px 16px;
+    color: #ffffff;
+    background: var(--blue);
+}
+
 .prototype-card,
 .feature-card,
 .lab-card,
@@ -423,6 +429,100 @@ h2 {
     padding: 20px;
 }
 
+.user-area {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-chip {
+    display: flex;
+    flex-direction: column;
+    color: var(--navy);
+    font-size: 13px;
+    line-height: 1.25;
+}
+
+.user-chip small {
+    color: var(--muted);
+}
+
+.inline-form {
+    margin: 0;
+}
+
+.text-button {
+    padding: 0;
+    border: 0;
+    color: var(--blue-dark);
+    background: transparent;
+    cursor: pointer;
+}
+
+.flash-stack {
+    padding-top: 18px;
+}
+
+.flash {
+    margin-bottom: 10px;
+    padding: 13px 16px;
+    border: 1px solid #bbd5ff;
+    border-radius: 10px;
+    color: #1849a9;
+    background: #eff6ff;
+}
+
+.flash.success {
+    border-color: #a6f4c5;
+    color: #067647;
+    background: #ecfdf3;
+}
+
+.flash.warning,
+.flash.error {
+    border-color: #fedf89;
+    color: #93370d;
+    background: #fffaeb;
+}
+
+.auth-section {
+    display: flex;
+    align-items: center;
+}
+
+.auth-layout,
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.auth-layout h1 {
+    margin: 6px 0 10px;
+    color: var(--navy);
+}
+
+.form-intro {
+    margin: 0 0 24px;
+    color: var(--muted);
+}
+
+.demo-account {
+    display: flex;
+    justify-content: space-between;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.demo-account span {
+    color: var(--muted);
+}
+
+.demo-password {
+    margin: 22px 0 0;
+}
+
 .filter-bar .form-row {
     margin: 0;
 }
@@ -585,7 +685,9 @@ h2 {
 
 @media (max-width: 840px) {
     .hero-grid,
-    .form-layout {
+    .form-layout,
+    .auth-layout,
+    .dashboard-grid {
         grid-template-columns: 1fr;
     }
 
@@ -621,6 +723,11 @@ h2 {
         flex-direction: column;
         gap: 12px;
         padding: 14px 0;
+    }
+
+    .user-area {
+        width: 100%;
+        justify-content: flex-end;
     }
 
     .main-nav {

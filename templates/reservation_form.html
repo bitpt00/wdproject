@@ -7,7 +7,7 @@
     <div class="container">
         <p class="eyebrow">预约申请</p>
         <h1>填写实验室预约信息</h1>
-        <p>实验室选项已从SQLite读取，但本版本仍不会保存预约申请。</p>
+        <p>{{ g.user.display_name }}已以学生身份登录。当前版本用于验证权限，尚不保存预约申请。</p>
     </div>
 </section>
 
@@ -58,12 +58,12 @@
             <span class="prototype-label">开发边界</span>
             <h2>这个版本做到哪里</h2>
             <div class="stage-item done">
-                <strong>dev-v0.2已经完成</strong>
-                <p>数据库、实验室数据模型、样例数据、筛选和详情查询。</p>
+                <strong>dev-v0.3已经完成</strong>
+                <p>用户模型、密码校验、登录会话和三种角色的访问权限。</p>
             </div>
             <div class="stage-item next">
-                <strong>dev-v0.3</strong>
-                <p>增加用户登录，并区分学生、审批教师和管理员。</p>
+                <strong>dev-v0.4</strong>
+                <p>增加可预约时段，让学生真正提交、查看和取消预约。</p>
             </div>
             <div class="stage-item later">
                 <strong>dev-v0.4</strong>
