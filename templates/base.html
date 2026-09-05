@@ -4,11 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}校园实验室预约系统{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="version-strip">
-        开发教学版 {{ app_version }} · 自动测试与质量加固
+        开发教学版 {{ app_version }} · 集成、验收与发布
     </div>
 
     <header class="site-header">
@@ -29,6 +30,8 @@
                 <a class="{{ 'active' if request.endpoint in ['my_bookings', 'booking_detail', 'reserve'] else '' }}" href="{{ url_for('my_bookings') }}">我的预约</a>
                 {% elif g.user.role == 'approver' %}
                 <a class="{{ 'active' if request.endpoint in ['approvals', 'approval_detail'] else '' }}" href="{{ url_for('approvals') }}">预约审批</a>
+                {% elif g.user.role == 'admin' %}
+                <a class="{{ 'active' if request.endpoint == 'admin_labs' else '' }}" href="{{ url_for('admin_labs') }}">实验室管理</a>
                 {% endif %}
                 {% endif %}
             </nav>
@@ -62,7 +65,7 @@
     <footer class="site-footer">
         <div class="container footer-inner">
             <span>校园实验室预约与审批系统</span>
-            <span>{{ app_version }}</span>
+            <a href="{{ url_for('version_info') }}">版本与运行信息 · {{ app_version }}</a>
         </div>
     </footer>
 </body>

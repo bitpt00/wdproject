@@ -1,24 +1,8 @@
 import pytest
 from sqlalchemy import func, select
 
-from app import LAB_SEED_DATA, create_app
+from app import LAB_SEED_DATA
 from models import Booking, BookingHistory, Lab, TimeSlot, User, db
-
-
-@pytest.fixture()
-def app(tmp_path):
-    database_path = tmp_path / "test.db"
-    return create_app(
-        {
-            "TESTING": True,
-            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{database_path.as_posix()}",
-        }
-    )
-
-
-@pytest.fixture()
-def client(app):
-    return app.test_client()
 
 
 def post_with_csrf(client, path, data=None, **kwargs):
@@ -59,7 +43,7 @@ def test_home_page_is_available(client):
 
     assert response.status_code == 200
     assert "校园实验室预约与审批系统" in response.get_data(as_text=True)
-    assert "dev-v0.6" in response.get_data(as_text=True)
+    assert "dev-v1.0" in response.get_data(as_text=True)
 
 
 def test_database_is_seeded(app):
@@ -312,6 +296,68 @@ def test_custom_error_pages_explain_the_problem(app, client):
     forbidden = client.get(f"/reserve/{first_slot_id(app)}")
     assert forbidden.status_code == 403
     assert "当前账号不能访问" in forbidden.get_data(as_text=True)
+
+
+def test_health_and_version_endpoints(client):
+    health = client.get("/health")
+
+    assert health.status_code == 200
+    assert health.get_json() == {
+        "status": "ok",
+        "version": "dev-v1.0",
+        "database": "ok",
+    }
+    version_page = client.get("/version").get_data(as_text=True)
+    assert "手工开发阶段完整版本" in version_page
+    assert "Flask-SQLAlchemy" in version_page
+
+
+def test_admin_can_change_lab_service_status(app, client):
+    login(client, username="A001")
+    with app.app_context():
+        maintenance_lab_id = db.session.scalar(
+            select(Lab.id).where(Lab.status == "维护中")
+        )
+
+    response = post_with_csrf(
+        client,
+        f"/admin/labs/{maintenance_lab_id}/toggle",
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "已恢复开放" in response.get_data(as_text=True)
+    with app.app_context():
+        assert db.session.get(Lab, maintenance_lab_id).status == "可预约"
+
+
+def test_non_admin_cannot_manage_labs(client):
+    login(client)
+
+    assert client.get("/admin/labs").status_code == 403
+
+
+def test_admin_cannot_disable_lab_with_active_booking(app, client):
+    login(client)
+    slot_id = first_slot_id(app)
+    submit_booking(client, slot_id)
+    with app.app_context():
+        lab_id = db.session.get(TimeSlot, slot_id).lab_id
+    post_with_csrf(client, "/logout")
+    login(client, username="A001")
+
+    response = post_with_csrf(client, f"/admin/labs/{lab_id}/toggle")
+
+    assert response.status_code == 400
+    assert "仍有待审批或已通过的预约" in response.get_data(as_text=True)
+
+
+def test_admin_page_contains_csrf_protected_actions(client):
+    login(client, username="A001")
+    page = client.get("/admin/labs").get_data(as_text=True)
+
+    assert "实验室管理" in page
+    assert page.count('name="_csrf_token"') >= len(LAB_SEED_DATA) + 1
 
 
 @pytest.mark.parametrize("path", ["/", "/labs"])

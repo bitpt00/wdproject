@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}版本与运行信息｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div class="container">
+        <p class="eyebrow">发布基线</p>
+        <h1>{{ app_version }}</h1>
+        <p>校园实验室预约与审批系统 · 手工开发阶段完整版本</p>
+    </div>
+</section>
+
+<section class="section compact-top">
+    <div class="container version-grid">
+        <article class="detail-card">
+            <h2>运行数据</h2>
+            <div class="metric-grid">
+                <div><strong>{{ counts.labs }}</strong><span>实验室</span></div>
+                <div><strong>{{ counts.users }}</strong><span>演示用户</span></div>
+                <div><strong>{{ counts.bookings }}</strong><span>预约记录</span></div>
+            </div>
+            <a class="text-link" href="{{ url_for('health') }}">查看JSON健康检查</a>
+        </article>
+        <article class="detail-card">
+            <h2>技术路线</h2>
+            <ol class="architecture-list">
+                <li>浏览器与Jinja2页面</li>
+                <li>Flask路由和业务校验</li>
+                <li>Flask-SQLAlchemy数据模型</li>
+                <li>SQLite本地数据库</li>
+            </ol>
+        </article>
+    </div>
+</section>
+{% endblock %}

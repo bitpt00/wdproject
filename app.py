@@ -2,17 +2,18 @@ from pathlib import Path
 from functools import wraps
 from datetime import date, datetime, time, timedelta
 from hmac import compare_digest
+import os
 from secrets import token_urlsafe
 from uuid import uuid4
 
-from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy import func, inspect, or_, select, text
 
 from models import Booking, BookingHistory, Lab, TimeSlot, User, db
 from validators import validate_approval_form, validate_booking_form
 
 
-VERSION = "dev-v0.6"
+VERSION = "dev-v1.0"
 
 LAB_SEED_DATA = [
     {
@@ -186,11 +187,14 @@ def create_app(test_config=None):
     database_path = Path(app.instance_path) / "campus_lab.db"
     app.config.from_mapping(
         TESTING=False,
-        SECRET_KEY="development-course-secret-key",
+        SECRET_KEY=os.environ.get("CAMPUS_LAB_SECRET_KEY", "classroom-demo-secret-key"),
         MAX_CONTENT_LENGTH=1024 * 1024,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
-        SQLALCHEMY_DATABASE_URI=f"sqlite:///{database_path.as_posix()}",
+        SQLALCHEMY_DATABASE_URI=os.environ.get(
+            "CAMPUS_LAB_DATABASE_URL",
+            f"sqlite:///{database_path.as_posix()}",
+        ),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
 
@@ -265,6 +269,8 @@ def create_app(test_config=None):
     def dashboard():
         my_booking_count = 0
         pending_count = 0
+        lab_count = 0
+        available_lab_count = 0
         if g.user.role == "student":
             my_booking_count = db.session.scalar(
                 select(func.count()).select_from(Booking).where(Booking.user_id == g.user.id)
@@ -273,10 +279,17 @@ def create_app(test_config=None):
             pending_count = db.session.scalar(
                 select(func.count()).select_from(Booking).where(Booking.status == "PENDING")
             )
+        elif g.user.role == "admin":
+            lab_count = db.session.scalar(select(func.count()).select_from(Lab))
+            available_lab_count = db.session.scalar(
+                select(func.count()).select_from(Lab).where(Lab.status == "可预约")
+            )
         return render_template(
             "dashboard.html",
             my_booking_count=my_booking_count,
             pending_count=pending_count,
+            lab_count=lab_count,
+            available_lab_count=available_lab_count,
         )
 
     @app.get("/labs")
@@ -459,6 +472,57 @@ def create_app(test_config=None):
         flash(f"预约{booking.booking_no}已{booking.status_label}。", "success")
         return redirect(url_for("approval_detail", booking_id=booking.id))
 
+    @app.get("/admin/labs")
+    @role_required("admin")
+    def admin_labs():
+        labs = db.session.scalars(select(Lab).order_by(Lab.id)).all()
+        return render_template("admin_labs.html", labs=labs)
+
+    @app.post("/admin/labs/<int:lab_id>/toggle")
+    @role_required("admin")
+    def toggle_lab(lab_id):
+        lab = db.session.get(Lab, lab_id)
+        if lab is None:
+            abort(404)
+
+        if lab.is_available:
+            active_booking = db.session.scalar(
+                select(Booking)
+                .join(TimeSlot)
+                .where(
+                    TimeSlot.lab_id == lab.id,
+                    Booking.status.in_(["PENDING", "APPROVED"]),
+                )
+            )
+            if active_booking:
+                abort(
+                    400,
+                    description="该实验室仍有待审批或已通过的预约，不能直接停用。",
+                )
+            lab.status = "维护中"
+            message = f"{lab.name}已设为维护中。"
+        else:
+            lab.status = "可预约"
+            message = f"{lab.name}已恢复开放。"
+
+        db.session.commit()
+        flash(message, "success")
+        return redirect(url_for("admin_labs"))
+
+    @app.get("/version")
+    def version_info():
+        counts = {
+            "labs": db.session.scalar(select(func.count()).select_from(Lab)),
+            "users": db.session.scalar(select(func.count()).select_from(User)),
+            "bookings": db.session.scalar(select(func.count()).select_from(Booking)),
+        }
+        return render_template("version.html", counts=counts)
+
+    @app.get("/health")
+    def health():
+        db.session.scalar(select(func.count()).select_from(Lab))
+        return jsonify(status="ok", version=VERSION, database="ok")
+
     @app.errorhandler(400)
     def bad_request(error):
         return render_template("errors/400.html", error=error), 400
@@ -478,4 +542,8 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(
+        host="127.0.0.1",
+        port=int(os.environ.get("CAMPUS_LAB_PORT", "5000")),
+        debug=False,
+    )
