@@ -7,7 +7,7 @@
     <div class="container">
         <p class="eyebrow">预约申请</p>
         <h1>填写实验室预约信息</h1>
-        <p>本页面用于确认需要采集哪些信息。V0.1不会把表单内容保存到数据库。</p>
+        <p>实验室选项已从SQLite读取，但本版本仍不会保存预约申请。</p>
     </div>
 </section>
 
@@ -18,7 +18,7 @@
                 <label for="lab">实验室</label>
                 <select id="lab" name="lab">
                     <option value="">请选择实验室</option>
-                    {% for lab in labs if lab.status == '可预约' %}
+                    {% for lab in labs %}
                     <option value="{{ lab.id }}" {{ 'selected' if selected_lab_id == lab.id else '' }}>{{ lab.name }}（{{ lab.location }}）</option>
                     {% endfor %}
                 </select>
@@ -58,12 +58,12 @@
             <span class="prototype-label">开发边界</span>
             <h2>这个版本做到哪里</h2>
             <div class="stage-item done">
-                <strong>已经完成</strong>
-                <p>页面结构、输入项、导航和基本样式。</p>
+                <strong>dev-v0.2已经完成</strong>
+                <p>数据库、实验室数据模型、样例数据、筛选和详情查询。</p>
             </div>
             <div class="stage-item next">
-                <strong>dev-v0.2</strong>
-                <p>接入SQLite，让实验室数据能够保存和查询。</p>
+                <strong>dev-v0.3</strong>
+                <p>增加用户登录，并区分学生、审批教师和管理员。</p>
             </div>
             <div class="stage-item later">
                 <strong>dev-v0.4</strong>
@@ -73,4 +73,3 @@
     </div>
 </section>
 {% endblock %}
-

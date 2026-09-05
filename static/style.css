@@ -224,7 +224,10 @@ h2 {
 .feature-card,
 .lab-card,
 .reservation-form,
-.stage-panel {
+.stage-panel,
+.detail-card,
+.filter-bar,
+.empty-state {
     border: 1px solid rgba(219, 227, 236, 0.9);
     border-radius: 18px;
     background: var(--surface);
@@ -412,6 +415,91 @@ h2 {
     font-size: 14px;
 }
 
+.filter-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    margin-bottom: 18px;
+    padding: 20px;
+}
+
+.filter-bar .form-row {
+    margin: 0;
+}
+
+.filter-bar .grow {
+    flex: 1;
+}
+
+.filter-status {
+    width: 180px;
+}
+
+.result-summary {
+    margin: 0 0 18px;
+    color: var(--muted);
+}
+
+.card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: auto;
+}
+
+.empty-state {
+    grid-column: 1 / -1;
+    padding: 44px;
+    text-align: center;
+}
+
+.empty-state h2 {
+    margin-top: 0;
+}
+
+.back-link {
+    display: inline-block;
+    margin-bottom: 22px;
+    color: #dbeafe;
+    text-decoration: none;
+}
+
+.detail-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.75fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.detail-card {
+    padding: 28px;
+}
+
+.detail-card h2 {
+    margin: 0;
+}
+
+.detail-list {
+    margin: 26px 0;
+}
+
+.detail-list div {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 18px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.detail-list dt {
+    color: var(--muted);
+}
+
+.detail-list dd {
+    margin: 0;
+    font-weight: 700;
+}
+
 .form-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 340px;
@@ -508,6 +596,18 @@ h2 {
 
     .hero {
         padding-top: 54px;
+    }
+    .detail-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-bar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .filter-status {
+        width: auto;
     }
 }
 
