@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}开始学习 · S0→V0.1{% endblock %}
+{% block content %}
+<section class="hero">
+    <div>
+        <span class="eyebrow">软件生命周期 · 第一个可运行版本</span>
+        <h1>从 S0 起点，亲手形成 dev-v0.1</h1>
+        <p class="lead">平台负责提供准确代码、检查环境和保存证据；你负责预测、点击、运行、观察、测试、诊断和解释。</p>
+    </div>
+    <div class="flow-card">
+        <span>确认起点</span><b>→</b><span>逐步构建</span><b>→</b><span>运行观察</span><b>→</b><span>测试恢复</span><b>→</b><span>冻结版本</span>
+    </div>
+</section>
+
+{% if existing %}
+<section class="panel accent-panel">
+    <div>
+        <p class="eyebrow">当前学习者</p>
+        <h2>{{ existing.profile.student_id }} · {{ existing.profile.name }}</h2>
+        <p>进度已保存在本机，可以从上次位置继续。</p>
+    </div>
+    <div class="button-row">
+        <a class="button primary" href="{{ url_for('dashboard') }}">继续学习</a>
+        <form action="{{ url_for('leave') }}" method="post">
+            <button class="button secondary" type="submit">切换学生</button>
+        </form>
+    </div>
+</section>
+{% else %}
+<section class="panel entry-panel">
+    <div>
+        <p class="eyebrow">建立个人隔离工作区</p>
+        <h2>输入身份，开始 C0</h2>
+        <p>同一学号再次进入会继续原进度，不会覆盖已有代码与记录。</p>
+    </div>
+    <form class="entry-form" action="{{ url_for('enter') }}" method="post">
+        <label>学号
+            <input name="student_id" required minlength="2" maxlength="32" pattern="[A-Za-z0-9_-]+" placeholder="例如 20260001">
+        </label>
+        <label>姓名
+            <input name="name" required maxlength="50" placeholder="请输入姓名">
+        </label>
+        <button class="button primary" type="submit">创建或继续工作区</button>
+    </form>
+</section>
+{% endif %}
+
+<section class="three-column">
+    <article class="mini-card"><b>平台会做</b><p>复制验证过的完整文件、限制目录、运行检查、保存状态与日志。</p></article>
+    <article class="mini-card"><b>学生必须做</b><p>先预测，再触发；亲自打开页面、填写表单、设计测试并诊断故障。</p></article>
+    <article class="mini-card"><b>最终证据</b><p>13 个终点文件、5 项手工测试、6 passed、故障恢复、Git 标签和个人报告。</p></article>
+</section>
+{% endblock %}

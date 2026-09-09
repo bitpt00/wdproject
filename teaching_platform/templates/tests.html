@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}测试记录{% endblock %}
+{% block content %}
+<section class="page-heading"><span class="eyebrow">预期 → 操作 → 实际 → 结论</span><h1>V0.1 测试工作台</h1><p>先写预期，再亲自操作学生网站并填写实际；自动测试不能替代这一步。</p></section>
+
+{% if server %}<section class="server-banner"><div><b>学生项目正在运行</b><span>{{ server.url }}</span></div><a class="button primary" target="_blank" rel="noopener" href="{{ server.url }}">打开并执行手工测试</a></section>{% endif %}
+
+<form action="{{ url_for('save_tests') }}" method="post">
+{% for case in state.manual_tests %}
+    {% set index = loop.index0 %}
+    <section class="panel test-case">
+        <div class="test-heading"><span class="checkpoint">{{ case.id }}</span><h2>{{ case.title }}</h2></div>
+        <div class="form-grid">
+            <label>前置条件<textarea name="case_{{ index }}_precondition" rows="2" required>{{ case.precondition }}</textarea></label>
+            <label>操作<textarea name="case_{{ index }}_action" rows="2" required>{{ case.action }}</textarea></label>
+            <label>预期结果 <span class="required">操作前填写</span><textarea name="case_{{ index }}_expected" rows="3" required>{{ case.expected }}</textarea></label>
+            <label>实际结果 <span class="required">亲自操作后填写</span><textarea name="case_{{ index }}_actual" rows="3" required>{{ case.actual }}</textarea></label>
+        </div>
+        <label>结论<select name="case_{{ index }}_conclusion" required><option value="">请选择</option><option value="通过" {% if case.conclusion == '通过' %}selected{% endif %}>通过</option><option value="不通过" {% if case.conclusion == '不通过' %}selected{% endif %}>不通过</option></select></label>
+    </section>
+{% endfor %}
+    <button class="button primary" type="submit">保存5项手工测试记录</button>
+</form>
+
+<section class="panel auto-test-panel">
+    <h2>运行自动测试</h2>
+    <p>C6 的正确结果是未收集到测试；C7/C8 的正确结果是 6 passed。平台会保存完整输出和时间。</p>
+    <form action="{{ url_for('run_tests') }}" method="post"><button class="button secondary" type="submit">运行 pytest -q</button></form>
+    {% if state.last_test %}
+        <div class="test-result {{ 'passed' if state.last_test.exit_code == 0 else 'observed' }}"><b>{{ state.last_test.passed_count }} passed · exit code {{ state.last_test.exit_code }}</b><span>{{ state.last_test.finished_at }}</span></div>
+        <pre class="log-box">{{ state.last_test.output }}</pre>
+    {% endif %}
+</section>
+{% endblock %}

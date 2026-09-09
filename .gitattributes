@@ -2,3 +2,7 @@
 教学资源/版本终点核对包/** -whitespace
 教学资源/S0_起点包/** -whitespace
 教学资源/AI项目S0起点包/** -whitespace
+# Generated checkpoint payloads carry their own byte hashes and must round-trip unchanged.
+教学资源/平台检查点/** -text -whitespace
+# The Windows launcher must also work when downloaded as a GitHub ZIP.
+启动教学平台.bat -text -whitespace

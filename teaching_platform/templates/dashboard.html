@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}任务总览 · {{ state.profile.student_id }}{% endblock %}
+{% block content %}
+<section class="page-heading split-heading">
+    <div>
+        <span class="eyebrow">{{ state.profile.student_id }} · {{ state.profile.name }}</span>
+        <h1>S0→dev-v0.1 任务总览</h1>
+        <p>按顺序完成 C0—C8。代码落地不等于任务完成，解释和验证同样是门禁。</p>
+    </div>
+    <form action="{{ url_for('leave') }}" method="post">
+        <button class="button secondary" type="submit">退出当前学生</button>
+    </form>
+</section>
+
+<section class="evidence-strip">
+    <div><span>已完成</span><strong>{{ statuses | selectattr('status', 'equalto', 'completed') | list | length }}/9</strong></div>
+    <div><span>当前检查点</span><strong>{{ state.current_checkpoint }}</strong></div>
+    <div><span>最近自动测试</span><strong>{% if state.last_test %}{{ state.last_test.passed_count }} passed{% else %}尚未运行{% endif %}</strong></div>
+    <div><span>版本标签</span><strong>{{ state.git_result.tag if state.git_result.tag else '尚未冻结' }}</strong></div>
+</section>
+
+{% if server %}
+<section class="server-banner">
+    <div><b>学生项目正在运行</b><span>{{ server.url }}</span></div>
+    <div class="button-row">
+        <a class="button primary" target="_blank" rel="noopener" href="{{ server.url }}">打开学生项目</a>
+        <form action="{{ url_for('stop_student') }}" method="post"><input type="hidden" name="return_to" value="{{ url_for('dashboard') }}"><button class="button secondary" type="submit">停止</button></form>
+    </div>
+</section>
+{% endif %}
+
+<section class="task-grid">
+{% for item in statuses %}
+    <article class="task-card {{ item.status }}">
+        <div class="task-topline"><span class="checkpoint">{{ item.id }}</span><span class="status-pill">{% if item.status == 'completed' %}已完成{% elif item.status == 'active' %}进行中{% else %}未解锁{% endif %}</span></div>
+        <h2>{{ item.title }}</h2>
+        <p>{{ task_definitions[item.id].summary }}</p>
+        <div class="task-flags"><span>{{ '已应用' if item.applied else '未应用' }}</span><span>{{ '已验证' if item.verified else '待验证' }}</span></div>
+        {% if item.status != 'locked' %}<a class="button {{ 'primary' if item.status == 'active' else 'secondary' }}" href="{{ url_for('task', checkpoint_id=item.id) }}">{{ '进入任务' if item.status == 'active' else '查看记录' }}</a>{% else %}<button class="button disabled" disabled>先完成前一项</button>{% endif %}
+    </article>
+{% endfor %}
+</section>
+
+<section class="panel environment-panel">
+    <h2>当前平台运行环境</h2>
+    <dl class="facts">
+        <div><dt>Python</dt><dd>{{ state.environment.python }}</dd></div>
+        <div><dt>Flask</dt><dd>{{ state.environment.flask }}</dd></div>
+        <div><dt>pytest</dt><dd>{{ state.environment.pytest }}</dd></div>
+        <div><dt>Git</dt><dd>{{ state.environment.git }}</dd></div>
+    </dl>
+    <p class="muted">学生项目目录：{{ state.workspace }}</p>
+</section>
+{% endblock %}

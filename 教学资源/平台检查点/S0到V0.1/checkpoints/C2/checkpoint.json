@@ -1,0 +1,55 @@
+{
+  "id": "C2",
+  "title": "建立最小Flask应用",
+  "website_state": "纯文字首页可访问",
+  "directories": [
+    "static",
+    "templates",
+    "tests"
+  ],
+  "files": [
+    {
+      "path": ".gitignore",
+      "source": "教学资源/S0_起点包/.gitignore",
+      "bytes": 56,
+      "sha256": "f2e3fd682add41e941e85a18dac9c26d9dd2b3d001afba55b4c3815ed0167443",
+      "normalized_text_sha256": "f2e3fd682add41e941e85a18dac9c26d9dd2b3d001afba55b4c3815ed0167443"
+    },
+    {
+      "path": "requirements.txt",
+      "source": "教学资源/S0_起点包/requirements.txt",
+      "bytes": 28,
+      "sha256": "571af652b31a604dca3c4e322e1f6a530b9055b97e347811dc4c11a077c1daf3",
+      "normalized_text_sha256": "571af652b31a604dca3c4e322e1f6a530b9055b97e347811dc4c11a077c1daf3"
+    },
+    {
+      "path": "初始化开发环境.bat",
+      "source": "教学资源/S0_起点包/初始化开发环境.bat",
+      "bytes": 503,
+      "sha256": "4549176006669a4633111dfb63ee5d19ef145608b52ec10fcb60446c374c26a4",
+      "normalized_text_sha256": "4549176006669a4633111dfb63ee5d19ef145608b52ec10fcb60446c374c26a4"
+    },
+    {
+      "path": "VERSION",
+      "source": "教学资源/版本终点核对包/dev-v0.1/VERSION",
+      "bytes": 12,
+      "sha256": "ebf4db0c6feec25726e50e12bc468c0bb3f5dd65b86d5e36e896d7b537acfe6b",
+      "normalized_text_sha256": "4650e2a3dcf66175d5dfd1d8be681e1d6305a79eb8b18b285f25cda7602ce735"
+    },
+    {
+      "path": "app.py",
+      "source": "S06第4.3节临时app.py",
+      "bytes": 463,
+      "sha256": "b0fe5f302020737e51683b049cb1dcf922d4f3629bfc0340ea6971dbc6c24c3d",
+      "normalized_text_sha256": "b0fe5f302020737e51683b049cb1dcf922d4f3629bfc0340ea6971dbc6c24c3d"
+    }
+  ],
+  "delta_from_previous": {
+    "added": [
+      "VERSION",
+      "app.py"
+    ],
+    "modified": [],
+    "removed": []
+  }
+}

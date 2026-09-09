@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}代码观察 · {{ state.current_checkpoint }}{% endblock %}
+{% block content %}
+<section class="page-heading"><span class="eyebrow">只读观察器</span><h1>当前学生项目文件</h1><p>这里只显示课程清单中的受控文件，不允许通过网址访问任意本机路径。</p></section>
+<div class="workspace-layout">
+    <aside class="panel file-browser">
+        <h2>{{ state.current_checkpoint }} 文件树</h2>
+        {% for directory in directories %}<div class="directory">📁 {{ directory }}/</div>{% endfor %}
+        <ul class="file-list">{% for item in files %}<li><a class="{{ 'selected' if selected == item.path else '' }}" href="{{ url_for('workspace', file=item.path) }}">{{ item.path }}</a><small>{{ item.bytes }} B</small></li>{% endfor %}</ul>
+    </aside>
+    <section class="panel code-viewer">
+        {% if selected %}<div class="code-title"><h2>{{ selected }}</h2><span>只读 · UTF-8</span></div><pre><code>{{ content }}</code></pre>{% else %}<div class="empty-state"><h2>选择一个文件</h2><p>先观察它位于哪个目录，再寻找本课提到的关键位置。</p></div>{% endif %}
+    </section>
+</div>
+{% endblock %}

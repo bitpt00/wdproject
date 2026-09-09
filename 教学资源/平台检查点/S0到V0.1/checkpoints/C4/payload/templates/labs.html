@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}实验室｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div class="container">
+        <p class="eyebrow">实验资源</p>
+        <h1>实验室列表</h1>
+        <p>V0.1使用程序中的三条示例数据。V0.2将改为从SQLite数据库读取。</p>
+    </div>
+</section>
+
+<section class="section compact-top">
+    <div class="container lab-grid">
+        {% for lab in labs %}
+        <article class="lab-card">
+            <div class="lab-card-top">
+                <span class="lab-id">LAB-{{ "%03d"|format(lab.id) }}</span>
+                <span class="status {{ 'open' if lab.status == '可预约' else 'closed' }}">{{ lab.status }}</span>
+            </div>
+            <h2>{{ lab.name }}</h2>
+            <dl class="lab-details">
+                <div>
+                    <dt>位置</dt>
+                    <dd>{{ lab.location }}</dd>
+                </div>
+                <div>
+                    <dt>容量</dt>
+                    <dd>{{ lab.capacity }}人</dd>
+                </div>
+                <div>
+                    <dt>设备</dt>
+                    <dd>{{ lab.equipment }}</dd>
+                </div>
+            </dl>
+            {% if lab.status == '可预约' %}
+            <a class="text-link" href="{{ url_for('reservation_form', lab=lab.id) }}">填写预约信息</a>
+            {% else %}
+            <span class="text-muted">当前不能选择</span>
+            {% endif %}
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
+

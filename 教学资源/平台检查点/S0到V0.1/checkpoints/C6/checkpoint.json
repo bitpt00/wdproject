@@ -1,0 +1,104 @@
+{
+  "id": "C6",
+  "title": "增加运行与测试入口",
+  "website_state": "网站可运行，尚无自动测试用例",
+  "directories": [
+    "static",
+    "templates",
+    "tests"
+  ],
+  "files": [
+    {
+      "path": ".gitignore",
+      "source": "教学资源/S0_起点包/.gitignore",
+      "bytes": 56,
+      "sha256": "f2e3fd682add41e941e85a18dac9c26d9dd2b3d001afba55b4c3815ed0167443",
+      "normalized_text_sha256": "f2e3fd682add41e941e85a18dac9c26d9dd2b3d001afba55b4c3815ed0167443"
+    },
+    {
+      "path": "requirements.txt",
+      "source": "教学资源/S0_起点包/requirements.txt",
+      "bytes": 28,
+      "sha256": "571af652b31a604dca3c4e322e1f6a530b9055b97e347811dc4c11a077c1daf3",
+      "normalized_text_sha256": "571af652b31a604dca3c4e322e1f6a530b9055b97e347811dc4c11a077c1daf3"
+    },
+    {
+      "path": "初始化开发环境.bat",
+      "source": "教学资源/S0_起点包/初始化开发环境.bat",
+      "bytes": 503,
+      "sha256": "4549176006669a4633111dfb63ee5d19ef145608b52ec10fcb60446c374c26a4",
+      "normalized_text_sha256": "4549176006669a4633111dfb63ee5d19ef145608b52ec10fcb60446c374c26a4"
+    },
+    {
+      "path": "VERSION",
+      "source": "教学资源/版本终点核对包/dev-v0.1/VERSION",
+      "bytes": 12,
+      "sha256": "ebf4db0c6feec25726e50e12bc468c0bb3f5dd65b86d5e36e896d7b537acfe6b",
+      "normalized_text_sha256": "4650e2a3dcf66175d5dfd1d8be681e1d6305a79eb8b18b285f25cda7602ce735"
+    },
+    {
+      "path": "app.py",
+      "source": "教学资源/版本终点核对包/dev-v0.1/app.py",
+      "bytes": 1781,
+      "sha256": "29b06b6c27caffd618c054d7e60e95dfc4519bfe0414a3bd7878ed517e9feaa6",
+      "normalized_text_sha256": "199cf3e2e7d3e31af6b36ca348f76c9b46d1f955af62455eb144ba421bda6665"
+    },
+    {
+      "path": "static/style.css",
+      "source": "教学资源/版本终点核对包/dev-v0.1/static/style.css",
+      "bytes": 8988,
+      "sha256": "169b1749efe05afc05f59203a6ef6f36d7bb371a20311f52bf8007adae7a2b48",
+      "normalized_text_sha256": "a7fb671a2df37a5fc8798c31d0b13922374a1ffcc219d22e224fd33cba64dec7"
+    },
+    {
+      "path": "templates/base.html",
+      "source": "教学资源/版本终点核对包/dev-v0.1/templates/base.html",
+      "bytes": 1665,
+      "sha256": "cf9364c2d1d1d45cf90cf2e896bf512760c3e5637391b28cd2024e92b2ebb945",
+      "normalized_text_sha256": "37e0b0d4bf59edfd925b6e3ca0a76403f0d220270a9619289257f6b87b408179"
+    },
+    {
+      "path": "templates/index.html",
+      "source": "教学资源/版本终点核对包/dev-v0.1/templates/index.html",
+      "bytes": 2702,
+      "sha256": "52b3a9224744cea83905a01cf3615dca1ce9bc6538754679df09740560ae32fe",
+      "normalized_text_sha256": "960648bcabdc175c6bdbe05f5595d4ce47bbc8145ad63510c7fd342449bd9e74"
+    },
+    {
+      "path": "templates/labs.html",
+      "source": "教学资源/版本终点核对包/dev-v0.1/templates/labs.html",
+      "bytes": 1641,
+      "sha256": "59c403459d185eef69e9f10d4e2b6d846a6937f43598d278ef72abac0731237e",
+      "normalized_text_sha256": "4423fa90fc4dac5e156c256f0d8c1729b9f61ae7c6ccc64e784233180c2bb230"
+    },
+    {
+      "path": "templates/reservation_form.html",
+      "source": "教学资源/版本终点核对包/dev-v0.1/templates/reservation_form.html",
+      "bytes": 3174,
+      "sha256": "27c9be642809496cca6cf554b70a7f6256aeff33e0ee34c7a34741b197cd2133",
+      "normalized_text_sha256": "ad10df48781c51bdc910d7f5f441d30a47f847c593186d638ddfe53b1492b3cb"
+    },
+    {
+      "path": "启动dev-v0.1.bat",
+      "source": "教学资源/版本终点核对包/dev-v0.1/启动dev-v0.1.bat",
+      "bytes": 369,
+      "sha256": "d38205f132da84b035d8b8228c8e0f459f68b356a08a59954697f44efc648e06",
+      "normalized_text_sha256": "42cac58a167ab1a3f1adcf8f3f99294d6932aea80494acf884a85e0c4171e633"
+    },
+    {
+      "path": "运行测试.bat",
+      "source": "教学资源/版本终点核对包/dev-v0.1/运行测试.bat",
+      "bytes": 242,
+      "sha256": "e68e2cf8e58cd20aee07fdfc6414878de748fd822b76ff2b01f41337bef6a405",
+      "normalized_text_sha256": "440e09a42284cecaa78e9a3622b4e87af53431af9727500ed9e435cecb4160a3"
+    }
+  ],
+  "delta_from_previous": {
+    "added": [
+      "启动dev-v0.1.bat",
+      "运行测试.bat"
+    ],
+    "modified": [],
+    "removed": []
+  }
+}
