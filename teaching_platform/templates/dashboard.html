@@ -1,22 +1,39 @@
 {% extends "base.html" %}
-{% block title %}任务总览 · {{ state.profile.student_id }}{% endblock %}
+{% block title %}我的开发路线 · {{ state.profile.student_id }}{% endblock %}
 {% block content %}
-<section class="page-heading split-heading">
+<section class="page-heading split-heading dashboard-heading">
     <div>
         <span class="eyebrow">{{ state.profile.student_id }} · {{ state.profile.name }}</span>
-        <h1>S0→dev-v0.1 任务总览</h1>
-        <p>按顺序完成 C0—C8。代码落地不等于任务完成，解释和验证同样是门禁。</p>
+        <h1>我的 V0.1 开发路线</h1>
+        <p>一次只完成一个关卡。每关都按“先判断—生成变化—亲手体验—核对现象—说清原理”推进。</p>
     </div>
-    <form action="{{ url_for('leave') }}" method="post">
-        <button class="button secondary" type="submit">退出当前学生</button>
-    </form>
+    <form action="{{ url_for('leave') }}" method="post"><button class="button secondary" type="submit">退出当前学生</button></form>
 </section>
 
-<section class="evidence-strip">
-    <div><span>已完成</span><strong>{{ statuses | selectattr('status', 'equalto', 'completed') | list | length }}/9</strong></div>
-    <div><span>当前检查点</span><strong>{{ state.current_checkpoint }}</strong></div>
-    <div><span>最近自动测试</span><strong>{% if state.last_test %}{{ state.last_test.passed_count }} passed{% else %}尚未运行{% endif %}</strong></div>
-    <div><span>版本标签</span><strong>{{ state.git_result.tag if state.git_result.tag else '尚未冻结' }}</strong></div>
+{% if active_status %}
+<section class="dashboard-next">
+    <div class="dashboard-next-number">{{ active_status.id }}</div>
+    <div class="dashboard-next-copy">
+        <span>现在只做这一关</span>
+        <h2>{{ active_status.title }}</h2>
+        <p>{{ task_definitions[active_status.id].guide.goal }}</p>
+        <small>进入后第一眼就能看到当前动作：{{ active_status.next_action }}</small>
+    </div>
+    <a class="button primary" href="{{ url_for('task', checkpoint_id=active_status.id) }}">继续：{{ active_status.next_action }} →</a>
+</section>
+{% else %}
+<section class="dashboard-next completed-all">
+    <div class="dashboard-next-number">✓</div>
+    <div class="dashboard-next-copy"><span>全部完成</span><h2>dev-v0.1 已冻结</h2><p>9个关卡的操作、理解、测试和版本证据都已保存。</p></div>
+    <a class="button primary" href="{{ url_for('report') }}">查看学习报告 →</a>
+</section>
+{% endif %}
+
+<section class="evidence-strip student-summary">
+    <div><span>已经完成</span><strong>{{ statuses | selectattr('status', 'equalto', 'completed') | list | length }}/9 关</strong></div>
+    <div><span>正在学习</span><strong>{{ active_status.id if active_status else '全部完成' }}</strong></div>
+    <div><span>现在要做</span><strong>{{ active_status.phase_label if active_status else '查看成果' }}</strong></div>
+    <div><span>目标版本</span><strong>dev-v0.1</strong></div>
 </section>
 
 {% if server %}
@@ -29,26 +46,35 @@
 </section>
 {% endif %}
 
-<section class="task-grid">
+<div class="route-heading">
+    <div><p class="section-kicker">完整路线</p><h2>C0—C8 共9个关卡</h2></div>
+    <p>灰色关卡会在完成前一关后自动解锁。</p>
+</div>
+
+<section class="task-grid guided-task-grid">
 {% for item in statuses %}
     <article class="task-card {{ item.status }}">
-        <div class="task-topline"><span class="checkpoint">{{ item.id }}</span><span class="status-pill">{% if item.status == 'completed' %}已完成{% elif item.status == 'active' %}进行中{% else %}未解锁{% endif %}</span></div>
+        <div class="task-topline"><span class="checkpoint">{{ item.id }}</span><span class="status-pill">{% if item.status == 'completed' %}✓ 已完成{% elif item.status == 'active' %}现在进行{% else %}尚未解锁{% endif %}</span></div>
         <h2>{{ item.title }}</h2>
         <p>{{ task_definitions[item.id].summary }}</p>
-        <div class="task-flags"><span>{{ '已应用' if item.applied else '未应用' }}</span><span>{{ '已验证' if item.verified else '待验证' }}</span></div>
-        {% if item.status != 'locked' %}<a class="button {{ 'primary' if item.status == 'active' else 'secondary' }}" href="{{ url_for('task', checkpoint_id=item.id) }}">{{ '进入任务' if item.status == 'active' else '查看记录' }}</a>{% else %}<button class="button disabled" disabled>先完成前一项</button>{% endif %}
+        <div class="card-next-action"><span>{{ '当前动作' if item.status != 'locked' else '解锁条件' }}</span><b>{{ item.next_action }}</b></div>
+        {% if item.status != 'locked' %}
+        <a class="button {{ 'primary' if item.status == 'active' else 'secondary' }}" href="{{ url_for('task', checkpoint_id=item.id) }}">{{ '继续本关 →' if item.status == 'active' else '查看我的记录' }}</a>
+        {% else %}
+        <button class="button disabled" disabled>先完成前一关</button>
+        {% endif %}
     </article>
 {% endfor %}
 </section>
 
-<section class="panel environment-panel">
-    <h2>当前平台运行环境</h2>
+<details class="panel environment-panel knowledge-drawer">
+    <summary>查看本机开发环境信息</summary>
     <dl class="facts">
         <div><dt>Python</dt><dd>{{ state.environment.python }}</dd></div>
         <div><dt>Flask</dt><dd>{{ state.environment.flask }}</dd></div>
         <div><dt>pytest</dt><dd>{{ state.environment.pytest }}</dd></div>
         <div><dt>Git</dt><dd>{{ state.environment.git }}</dd></div>
     </dl>
-    <p class="muted">学生项目目录：{{ state.workspace }}</p>
-</section>
+    <p class="muted">个人项目目录：{{ state.workspace }}</p>
+</details>
 {% endblock %}

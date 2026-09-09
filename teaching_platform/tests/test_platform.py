@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from teaching_platform.app import create_app
-from teaching_platform.content import CHECKPOINT_ORDER, MANUAL_TEST_SCENARIOS
+from teaching_platform.content import CHECKPOINT_ORDER, MANUAL_TEST_SCENARIOS, TASKS
 from teaching_platform.engine import PlatformError, TeachingEngine
 
 
@@ -22,13 +22,10 @@ def engine(tmp_path: Path) -> TeachingEngine:
     instance.stop_all()
 
 
-def save_reflections(engine: TeachingEngine, student_id: str, checkpoint_id: str) -> None:
-    engine.save_reflections(
-        student_id,
-        checkpoint_id,
-        f"{checkpoint_id}操作前预测：我先判断文件和页面变化。",
-        f"{checkpoint_id}操作后观察：实际结果与检查点说明一致。",
-        f"{checkpoint_id}原理解释：文件必须经过路由或工具调用才产生效果。",
+def save_guided_records(engine: TeachingEngine, student_id: str, checkpoint_id: str) -> None:
+    guide = TASKS[checkpoint_id]["guide"]
+    engine.save_prediction(
+        student_id, checkpoint_id, guide["prediction"]["answer"]
     )
 
 
@@ -49,7 +46,7 @@ def save_passing_manual_tests(engine: TeachingEngine, student_id: str) -> None:
 
 
 def complete_one(engine: TeachingEngine, student_id: str, checkpoint_id: str) -> None:
-    save_reflections(engine, student_id, checkpoint_id)
+    save_guided_records(engine, student_id, checkpoint_id)
     if checkpoint_id == "C7":
         save_passing_manual_tests(engine, student_id)
     if checkpoint_id != "C0":
@@ -60,6 +57,16 @@ def complete_one(engine: TeachingEngine, student_id: str, checkpoint_id: str) ->
     if checkpoint_id == "C7":
         result = engine.run_tests(student_id)
         assert result["passed_count"] == 6
+    engine.confirm_action(student_id, checkpoint_id)
+    observation_ids = [
+        item["id"] for item in TASKS[checkpoint_id]["guide"]["observation"]["items"]
+    ]
+    engine.save_observation(student_id, checkpoint_id, observation_ids)
+    engine.save_explanation(
+        student_id,
+        checkpoint_id,
+        f"{checkpoint_id} 中我通过实际操作确认了文件、页面与程序连接关系。",
+    )
     engine.complete_task(student_id, checkpoint_id)
 
 
@@ -77,7 +84,7 @@ def advance_through(
 
 def prepare_c8(engine: TeachingEngine, student_id: str) -> dict:
     advance_through(engine, student_id, "C7")
-    save_reflections(engine, student_id, "C8")
+    save_guided_records(engine, student_id, "C8")
     engine.apply_checkpoint(student_id, "C8")
     return engine.get_state(student_id)
 
@@ -91,6 +98,17 @@ def restore_and_regress(engine: TeachingEngine, student_id: str) -> None:
     result = engine.run_tests(student_id)
     assert result["exit_code"] == 0
     assert result["passed_count"] == 6
+    engine.confirm_action(student_id, "C8")
+    engine.save_observation(
+        student_id,
+        "C8",
+        [item["id"] for item in TASKS["C8"]["guide"]["observation"]["items"]],
+    )
+    engine.save_explanation(
+        student_id,
+        "C8",
+        "恢复模板只能消除当前错误，重新回归测试才能确认其他页面没有受到影响。",
+    )
 
 
 def test_pt01_rejects_illegal_student_id_and_path_traversal(engine: TeachingEngine) -> None:
@@ -128,8 +146,7 @@ def test_pt03_refuses_to_skip_previous_checkpoint(engine: TeachingEngine) -> Non
 
 def test_pt04_requires_prediction_before_applying(engine: TeachingEngine) -> None:
     advance_through(engine, "PT04", "C0")
-    engine.save_reflections("PT04", "C1", "", "", "")
-    with pytest.raises(PlatformError, match="操作前预测"):
+    with pytest.raises(PlatformError, match="第1步选择题"):
         engine.apply_checkpoint("PT04", "C1")
     assert not (engine.workspace_path("PT04") / "static").exists()
 
@@ -145,7 +162,7 @@ def test_pt05_applies_c0_to_c8_snapshots_in_order(engine: TeachingEngine) -> Non
 
 def test_pt06_c2_returns_the_minimal_text_page(engine: TeachingEngine) -> None:
     advance_through(engine, "PT06", "C1")
-    save_reflections(engine, "PT06", "C2")
+    save_guided_records(engine, "PT06", "C2")
     engine.apply_checkpoint("PT06", "C2")
     result = engine.verify_checkpoint("PT06", "C2")
     assert result["passed"] is True
@@ -242,7 +259,11 @@ def test_pt15_saved_state_continues_after_platform_restart(tmp_path: Path) -> No
         "/enter", data={"student_id": "PT15", "name": "重启学生"}, follow_redirects=True
     )
     assert response.status_code == 200
-    assert "S0→dev-v0.1 任务总览" in response.get_data(as_text=True)
+    assert "你现在要做什么" in response.get_data(as_text=True)
+    response = client1.post(
+        "/task/C0/prediction", data={"choice": "B"}, follow_redirects=True
+    )
+    assert "B. 不能启动网站" in response.get_data(as_text=True)
     app1.extensions["teaching_engine"].stop_all()
 
     app2 = create_app(
@@ -256,4 +277,118 @@ def test_pt15_saved_state_continues_after_platform_restart(tmp_path: Path) -> No
     assert response.status_code == 200
     assert "已继续原有学习进度" in page
     assert "PT15 · 重启学生" in page
+    assert "B. 不能启动网站" in page
+    assert 'data-phase="experience"' in page
     app2.extensions["teaching_engine"].stop_all()
+
+
+def test_pt16_task_page_reveals_only_the_current_student_action(tmp_path: Path) -> None:
+    app = create_app(
+        {
+            "TESTING": True,
+            "SECRET_KEY": "guided-ui-test",
+            "RUNTIME_ROOT": tmp_path / "guided-ui-runtime",
+            "CHECKPOINT_ROOT": CHECKPOINT_ROOT,
+        }
+    )
+    client = app.test_client()
+    client.post("/enter", data={"student_id": "PT16", "name": "向导学生"})
+
+    page = client.get("/task/C0").get_data(as_text=True)
+    assert 'data-phase="predict"' in page
+    assert "如果现在就尝试启动网站" in page
+    assert 'name="choice"' in page
+    assert 'name="observations"' not in page
+    assert 'name="explanation"' not in page
+    assert "教师讲解的关键知识" not in page
+
+    tests_page = client.get("/tests").get_data(as_text=True)
+    assert "当前关卡不需要填写测试记录" in tests_page
+    assert 'name="case_0_expected"' not in tests_page
+    app.extensions["teaching_engine"].stop_all()
+
+
+def test_pt17_c0_saves_each_record_and_unlocks_the_next_step(tmp_path: Path) -> None:
+    app = create_app(
+        {
+            "TESTING": True,
+            "SECRET_KEY": "guided-save-test",
+            "RUNTIME_ROOT": tmp_path / "guided-save-runtime",
+            "CHECKPOINT_ROOT": CHECKPOINT_ROOT,
+        }
+    )
+    client = app.test_client()
+    client.post("/enter", data={"student_id": "PT17", "name": "保存学生"})
+
+    response = client.post(
+        "/task/C0/prediction", data={"choice": "B"}, follow_redirects=True
+    )
+    page = response.get_data(as_text=True)
+    assert "已保存你的选择" in page
+    assert "B. 不能启动网站" in page
+    assert 'data-phase="experience"' in page
+    assert 'name="observations"' not in page
+
+    response = client.post("/task/C0/action-confirmed", follow_redirects=True)
+    page = response.get_data(as_text=True)
+    assert "你完成了亲手操作" in page
+    assert 'data-phase="observe"' in page
+    assert 'name="observations"' in page
+    assert 'name="explanation"' not in page
+
+    observations = [
+        item["id"] for item in TASKS["C0"]["guide"]["observation"]["items"]
+    ]
+    response = client.post(
+        "/task/C0/observation",
+        data={"observations": observations},
+        follow_redirects=True,
+    )
+    page = response.get_data(as_text=True)
+    assert "已保存 3 项实际观察" in page
+    assert 'data-phase="explain"' in page
+    assert 'name="observations"' not in page
+    assert 'name="explanation"' in page
+
+    answer = "S0 已准备依赖和环境入口，但没有 app.py，所以不能向浏览器提供页面。"
+    response = client.post(
+        "/task/C0/explanation",
+        data={"explanation": answer},
+        follow_redirects=True,
+    )
+    page = response.get_data(as_text=True)
+    assert "一句话结论已保存" in page
+    assert answer in page
+    assert 'data-phase="finish"' in page
+    app.extensions["teaching_engine"].stop_all()
+
+
+def test_pt18_old_invalid_three_box_completion_is_preserved_but_reset(
+    engine: TeachingEngine,
+) -> None:
+    state, _ = engine.create_or_continue("PT18", "迁移学生")
+    state["schema_version"] = 1
+    state["tasks"]["C0"].update(
+        {
+            "prediction": "旧版预测",
+            "observation": "旧版预测",
+            "explanation": "旧版预测",
+            "completed": True,
+            "completed_at": "2026-09-09T00:00:00+00:00",
+        }
+    )
+    engine._save_state(state)
+
+    upgraded = engine.get_state("PT18")
+    task = upgraded["tasks"]["C0"]
+    assert upgraded["schema_version"] == 2
+    assert task["legacy_reflections"] == {
+        "prediction": "旧版预测",
+        "observation": "旧版预测",
+        "explanation": "旧版预测",
+    }
+    assert task["prediction"] == ""
+    assert task["observation"] == ""
+    assert task["explanation"] == ""
+    assert task["completed"] is False
+    assert engine.task_phase(upgraded, "C0") == "predict"

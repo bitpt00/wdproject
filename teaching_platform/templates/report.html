@@ -18,7 +18,7 @@
 <section class="task-grid report-grid">
 {% for checkpoint_id in checkpoint_order %}
     {% set item = state.tasks[checkpoint_id] %}
-    <article class="task-card {{ 'completed' if item.completed else 'locked' }}"><div class="task-topline"><span class="checkpoint">{{ checkpoint_id }}</span><span class="status-pill">{{ '已完成' if item.completed else '未完成' }}</span></div><h2>{{ task_definitions[checkpoint_id].title }}</h2><p><b>预测：</b>{{ item.prediction or '—' }}</p><p><b>观察：</b>{{ item.observation or '—' }}</p><p><b>解释：</b>{{ item.explanation or '—' }}</p></article>
+    <article class="task-card {{ 'completed' if item.completed else 'locked' }}"><div class="task-topline"><span class="checkpoint">{{ checkpoint_id }}</span><span class="status-pill">{{ '已完成' if item.completed else '未完成' }}</span></div><h2>{{ task_definitions[checkpoint_id].title }}</h2><p><b>事前判断：</b>{{ item.prediction or '—' }}</p><p><b>实际核对：</b>{{ item.observation or '—' }}</p><p><b>一句话结论：</b>{{ item.explanation or '—' }}</p></article>
 {% endfor %}
 </section>
 

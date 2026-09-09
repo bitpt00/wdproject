@@ -28,6 +28,27 @@ from .content import CHECKPOINT_ORDER, MANUAL_TEST_SCENARIOS, TASKS
 
 STUDENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{2,32}$")
 TEST_COUNT_PATTERN = re.compile(r"(\d+) passed")
+STATE_SCHEMA_VERSION = 2
+
+PHASE_LABELS = {
+    "predict": "先作判断",
+    "build": "生成本步变化",
+    "experience": "亲手体验",
+    "observe": "核对现象",
+    "explain": "说清原理",
+    "finish": "完成本关",
+    "completed": "已完成",
+}
+
+PHASE_ACTIONS = {
+    "predict": "回答1道选择题",
+    "build": "让平台生成本步文件",
+    "experience": "按清单亲手操作",
+    "observe": "勾选亲眼看到的结果",
+    "explain": "补全1句话",
+    "finish": "验证并完成本关",
+    "completed": "查看已保存的学习记录",
+}
 
 
 class PlatformError(RuntimeError):
@@ -128,9 +149,71 @@ class TeachingEngine:
         if not path.is_file():
             raise PlatformError("尚未创建该学号的学习工作区。")
         try:
-            return json.loads(path.read_text(encoding="utf-8"))
+            state = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise PlatformError(f"学习状态文件无法读取：{path}") from exc
+        if self._upgrade_state(state):
+            self._save_state(state)
+        return state
+
+    @staticmethod
+    def _upgrade_state(state: dict[str, Any]) -> bool:
+        """把旧版三输入框草稿迁移到逐步向导，并保留原文供追溯。"""
+
+        if state.get("schema_version", 1) >= STATE_SCHEMA_VERSION:
+            return False
+        c0 = state["tasks"]["C0"]
+        c0_old_values = [
+            c0.get(field, "").strip()
+            for field in ("prediction", "observation", "explanation")
+            if c0.get(field, "").strip()
+        ]
+        later_checkpoint_applied = any(
+            state["tasks"][checkpoint_id].get("applied")
+            for checkpoint_id in CHECKPOINT_ORDER[1:]
+        )
+        reset_invalid_c0 = (
+            c0.get("completed")
+            and len(c0_old_values) == 3
+            and len(set(c0_old_values)) == 1
+            and not later_checkpoint_applied
+        )
+        for checkpoint_id in CHECKPOINT_ORDER:
+            task = state["tasks"][checkpoint_id]
+            if checkpoint_id == "C0" and reset_invalid_c0:
+                task["completed"] = False
+                task["completed_at"] = None
+                state["current_checkpoint"] = "C0"
+            completed = bool(task.get("completed"))
+            old_reflections = {
+                field: task.get(field, "")
+                for field in ("prediction", "observation", "explanation")
+                if task.get(field, "")
+            }
+            if old_reflections and not completed:
+                task["legacy_reflections"] = old_reflections
+                task["prediction"] = ""
+                task["observation"] = ""
+                task["explanation"] = ""
+            task.setdefault("prediction_choice", "")
+            task.setdefault("observation_items", [])
+            task["action_confirmed"] = completed
+            task["action_confirmed_at"] = task.get("completed_at") if completed else None
+            task["prediction_saved_at"] = task.get("completed_at") if completed else None
+            task["observation_saved_at"] = task.get("completed_at") if completed else None
+            task["explanation_saved_at"] = task.get("completed_at") if completed else None
+        for case in state.get("manual_tests", []):
+            if not case.get("precondition", "").strip():
+                case["precondition"] = "学生项目已经启动，浏览器可以正常访问。"
+        state["schema_version"] = STATE_SCHEMA_VERSION
+        state.setdefault("actions", []).append(
+            {
+                "time": utc_now(),
+                "action": "state_upgraded_to_guided_flow",
+                "details": {"schema_version": STATE_SCHEMA_VERSION},
+            }
+        )
+        return True
 
     def _save_state(self, state: dict[str, Any]) -> None:
         student_id = state["profile"]["student_id"]
@@ -268,15 +351,22 @@ class TeachingEngine:
 
             now = utc_now()
             state: dict[str, Any] = {
-                "schema_version": 1,
+                "schema_version": STATE_SCHEMA_VERSION,
                 "profile": {"student_id": safe_id, "name": student_name, "created_at": now},
                 "workspace": str(workspace),
                 "current_checkpoint": "C0",
                 "tasks": {
                     checkpoint_id: {
                         "prediction": "",
+                        "prediction_choice": "",
+                        "prediction_saved_at": None,
+                        "action_confirmed": False,
+                        "action_confirmed_at": None,
                         "observation": "",
+                        "observation_items": [],
+                        "observation_saved_at": None,
                         "explanation": "",
+                        "explanation_saved_at": None,
                         "applied": checkpoint_id == "C0",
                         "applied_at": now if checkpoint_id == "C0" else None,
                         "verified": False,
@@ -290,7 +380,7 @@ class TeachingEngine:
                 "manual_tests": [
                     {
                         **scenario,
-                        "precondition": "",
+                        "precondition": "学生项目已经启动，浏览器可以正常访问。",
                         "action": scenario["suggested_action"],
                         "expected": "",
                         "actual": "",
@@ -318,6 +408,63 @@ class TeachingEngine:
                 return checkpoint_id
         return None
 
+    @staticmethod
+    def task_phase(state: dict[str, Any], checkpoint_id: str) -> str:
+        task = state["tasks"][checkpoint_id]
+        if task["completed"]:
+            return "completed"
+        if not task.get("prediction"):
+            return "predict"
+        if checkpoint_id != "C0" and not task["applied"]:
+            return "build"
+        if not task.get("action_confirmed"):
+            return "experience"
+        if not task.get("observation"):
+            return "observe"
+        if not task.get("explanation"):
+            return "explain"
+        return "finish"
+
+    def action_readiness(
+        self, state: dict[str, Any], checkpoint_id: str
+    ) -> dict[str, Any]:
+        """说明“亲手体验”步骤能否确认，并给页面可直接理解的原因。"""
+
+        if checkpoint_id == "C6":
+            ready = any(
+                item.get("kind") == "empty_collection"
+                for item in state.get("test_history", [])
+            )
+            return {
+                "ready": ready,
+                "reason": "先到测试页运行一次，看到“尚无测试用例”后再回来确认。",
+            }
+        if checkpoint_id == "C7":
+            last_test = state.get("last_test") or {}
+            applied_at = state["tasks"]["C7"].get("applied_at") or ""
+            ready = (
+                self._manual_tests_complete(state)
+                and self._last_test_passed(state)
+                and last_test.get("finished_at", "") >= applied_at
+            )
+            return {
+                "ready": ready,
+                "reason": "先完成5项手工验收，再运行新加入的自动测试并得到 6 passed。",
+            }
+        if checkpoint_id == "C8":
+            fault = state.get("fault") or {}
+            last_test = state.get("last_test") or {}
+            ready = (
+                fault.get("status") == "recovered"
+                and self._last_test_passed(state)
+                and last_test.get("finished_at", "") >= fault.get("recovered_at", "~")
+            )
+            return {
+                "ready": ready,
+                "reason": "先完成故障判断与恢复，再在恢复之后重新得到 6 passed。",
+            }
+        return {"ready": True, "reason": "完成上方操作后即可确认。"}
+
     def task_statuses(self, state: dict[str, Any]) -> list[dict[str, Any]]:
         active = self.active_checkpoint(state)
         statuses = []
@@ -329,6 +476,7 @@ class TeachingEngine:
                 status = "active"
             else:
                 status = "locked"
+            phase = self.task_phase(state, checkpoint_id)
             statuses.append(
                 {
                     "id": checkpoint_id,
@@ -336,6 +484,13 @@ class TeachingEngine:
                     "status": status,
                     "applied": task_state["applied"],
                     "verified": task_state["verified"],
+                    "phase": phase,
+                    "phase_label": PHASE_LABELS[phase],
+                    "next_action": (
+                        PHASE_ACTIONS[phase]
+                        if status != "locked"
+                        else "等待前一关完成"
+                    ),
                 }
             )
         return statuses
@@ -349,22 +504,98 @@ class TeachingEngine:
                 raise PlatformError("该任务已完成，只能查看，不能再次修改记录。")
             raise PlatformError(f"请先完成 {active or '全部任务'}，不能跳过检查点。")
 
-    def save_reflections(
-        self,
-        student_id: str,
-        checkpoint_id: str,
-        prediction: str,
-        observation: str,
-        explanation: str,
+    def save_prediction(
+        self, student_id: str, checkpoint_id: str, choice: str
     ) -> dict[str, Any]:
         with self._lock:
             state = self._load_state(student_id)
             self._require_active(state, checkpoint_id)
             task = state["tasks"][checkpoint_id]
-            task["prediction"] = self._bounded_text(prediction, "操作前预测")
-            task["observation"] = self._bounded_text(observation, "操作后观察")
-            task["explanation"] = self._bounded_text(explanation, "原理解释")
-            self._record(state, "reflections_saved", checkpoint=checkpoint_id)
+            if task.get("action_confirmed") or (
+                checkpoint_id != "C0" and task["applied"]
+            ):
+                raise PlatformError("已经进入实际操作，不能再把结果改写成事前判断。")
+            options = {
+                item["id"]: item["text"]
+                for item in TASKS[checkpoint_id]["guide"]["prediction"]["options"]
+            }
+            selected = self._bounded_text(choice, "选择", 10)
+            if selected not in options:
+                raise PlatformError("请选择一个答案后再继续。")
+            task["prediction_choice"] = selected
+            task["prediction"] = f"{selected}. {options[selected]}"
+            task["prediction_saved_at"] = utc_now()
+            self._record(
+                state,
+                "prediction_saved",
+                checkpoint=checkpoint_id,
+                choice=selected,
+            )
+            self._save_state(state)
+            return state
+
+    def confirm_action(self, student_id: str, checkpoint_id: str) -> dict[str, Any]:
+        with self._lock:
+            state = self._load_state(student_id)
+            self._require_active(state, checkpoint_id)
+            task = state["tasks"][checkpoint_id]
+            if not task["applied"]:
+                raise PlatformError("请先让平台生成本步文件。")
+            if not task.get("prediction"):
+                raise PlatformError("请先完成第1步判断。")
+            readiness = self.action_readiness(state, checkpoint_id)
+            if not readiness["ready"]:
+                raise PlatformError(readiness["reason"])
+            task["action_confirmed"] = True
+            task["action_confirmed_at"] = utc_now()
+            self._record(state, "student_action_confirmed", checkpoint=checkpoint_id)
+            self._save_state(state)
+            return state
+
+    def save_observation(
+        self, student_id: str, checkpoint_id: str, selected_items: list[str]
+    ) -> dict[str, Any]:
+        with self._lock:
+            state = self._load_state(student_id)
+            self._require_active(state, checkpoint_id)
+            task = state["tasks"][checkpoint_id]
+            if not task.get("action_confirmed"):
+                raise PlatformError("请先完成亲手操作，再核对实际结果。")
+            items = TASKS[checkpoint_id]["guide"]["observation"]["items"]
+            expected_ids = [item["id"] for item in items]
+            selected = list(dict.fromkeys(selected_items))
+            if set(selected) != set(expected_ids):
+                raise PlatformError("请完成实际操作，并逐项勾选所有亲眼确认的结果。")
+            text_by_id = {item["id"]: item["text"] for item in items}
+            task["observation_items"] = expected_ids
+            task["observation"] = "已确认：" + "；".join(
+                text_by_id[item_id] for item_id in expected_ids
+            )
+            task["observation_saved_at"] = utc_now()
+            self._record(
+                state,
+                "observation_saved",
+                checkpoint=checkpoint_id,
+                items=expected_ids,
+            )
+            self._save_state(state)
+            return state
+
+    def save_explanation(
+        self, student_id: str, checkpoint_id: str, explanation: str
+    ) -> dict[str, Any]:
+        with self._lock:
+            state = self._load_state(student_id)
+            self._require_active(state, checkpoint_id)
+            task = state["tasks"][checkpoint_id]
+            if not task.get("observation"):
+                raise PlatformError("请先核对并保存实际观察结果。")
+            answer = self._bounded_text(explanation, "一句话结论", 500)
+            if len(answer) < 8:
+                raise PlatformError("请至少写8个字，把原因说完整。")
+            task["explanation"] = answer
+            task["explanation_saved_at"] = utc_now()
+            self._record(state, "explanation_saved", checkpoint=checkpoint_id)
             self._save_state(state)
             return state
 
@@ -375,8 +606,8 @@ class TeachingEngine:
             task = state["tasks"][checkpoint_id]
             if checkpoint_id == "C0":
                 raise PlatformError("C0 已在创建个人工作区时准确应用。")
-            if not task["prediction"]:
-                raise PlatformError("请先填写并保存“操作前预测”，再应用检查点。")
+            if not task.get("prediction_choice"):
+                raise PlatformError("请先完成第1步选择题，再生成本步文件。")
             if checkpoint_id == "C7" and not self._manual_tests_complete(state):
                 raise PlatformError("请先完成测试页中的5项手工验收记录，再加入自动测试。")
 
@@ -388,6 +619,8 @@ class TeachingEngine:
                 raise PlatformError("检查点文件应用后核对失败，未改变任务完成状态。")
             task["applied"] = True
             task["applied_at"] = utc_now()
+            task["action_confirmed"] = False
+            task["action_confirmed_at"] = None
             task["verified"] = False
             task["verification"] = verification
             state["current_checkpoint"] = checkpoint_id
@@ -552,13 +785,15 @@ print(json.dumps(result, ensure_ascii=True))
             self._require_active(state, checkpoint_id)
             task = state["tasks"][checkpoint_id]
             if not task["applied"]:
-                raise PlatformError("请先应用检查点。")
+                raise PlatformError("请先让平台生成本步文件。")
+            if not task.get("action_confirmed"):
+                raise PlatformError("请先按清单完成亲手体验。")
             missing = [
                 label
                 for field, label in (
-                    ("prediction", "操作前预测"),
-                    ("observation", "操作后观察"),
-                    ("explanation", "原理解释"),
+                    ("prediction", "第1步判断"),
+                    ("observation", "实际观察"),
+                    ("explanation", "一句话结论"),
                 )
                 if not task[field]
             ]
@@ -886,11 +1121,13 @@ print(json.dumps(result, ensure_ascii=True))
             self._require_active(state, "C8")
             task = state["tasks"]["C8"]
             if not task["applied"]:
-                raise PlatformError("请先应用 C8。")
+                raise PlatformError("请先进入 C8 故障恢复与发布阶段。")
+            if not task.get("action_confirmed"):
+                raise PlatformError("请先完成故障恢复、回归测试并确认亲手操作。")
             for field, label in (
-                ("prediction", "操作前预测"),
-                ("observation", "操作后观察"),
-                ("explanation", "原理解释"),
+                ("prediction", "第1步判断"),
+                ("observation", "实际观察"),
+                ("explanation", "一句话结论"),
             ):
                 if not task[field]:
                     raise PlatformError(f"请先填写并保存{label}。")
@@ -1013,9 +1250,9 @@ print(json.dumps(result, ensure_ascii=True))
                 [
                     f"### {checkpoint_id} {TASKS[checkpoint_id]['title']}",
                     "",
-                    f"- 操作前预测：{task['prediction']}",
-                    f"- 操作后观察：{task['observation']}",
-                    f"- 原理解释：{task['explanation']}",
+                    f"- 事前判断：{task['prediction']}",
+                    f"- 实际核对：{task['observation']}",
+                    f"- 一句话结论：{task['explanation']}",
                     f"- 完成时间：{task.get('completed_at') or ''}",
                     "",
                 ]

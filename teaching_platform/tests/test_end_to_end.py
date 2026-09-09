@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path
 
 from teaching_platform.app import create_app
-from teaching_platform.content import MANUAL_TEST_SCENARIOS
+from teaching_platform.content import MANUAL_TEST_SCENARIOS, TASKS
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -19,12 +19,36 @@ def post_ok(client, path: str, data: dict[str, str] | None = None):
     return response
 
 
-def reflection_data(checkpoint_id: str) -> dict[str, str]:
-    return {
-        "prediction": f"{checkpoint_id}操作前：我预测只有接入路由的文件才会改变页面。",
-        "observation": f"{checkpoint_id}操作后：我查看了文件、页面或测试的实际变化。",
-        "explanation": f"{checkpoint_id}解释：本步结果来自入口、路由、模板与测试工具的协作。",
+def save_prediction(client, checkpoint_id: str):
+    answer = TASKS[checkpoint_id]["guide"]["prediction"]["answer"]
+    return post_ok(
+        client, f"/task/{checkpoint_id}/prediction", {"choice": answer}
+    )
+
+
+def finish_guided_records(client, checkpoint_id: str) -> None:
+    post_ok(client, f"/task/{checkpoint_id}/action-confirmed")
+    observation_data = {
+        "observations": [
+            item["id"]
+            for item in TASKS[checkpoint_id]["guide"]["observation"]["items"]
+        ]
     }
+    response = client.post(
+        f"/task/{checkpoint_id}/observation",
+        data=observation_data,
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    post_ok(
+        client,
+        f"/task/{checkpoint_id}/explanation",
+        {
+            "explanation": (
+                f"{checkpoint_id} 中我通过亲手操作确认了文件、页面和运行结果之间的关系。"
+            )
+        },
+    )
 
 
 def manual_test_form() -> dict[str, str]:
@@ -68,12 +92,13 @@ def test_clean_student_completes_the_entire_browser_workflow(tmp_path: Path) -> 
     assert "个人工作区已创建" in response.get_data(as_text=True)
 
     for checkpoint_id in ("C0", "C1"):
-        post_ok(client, f"/task/{checkpoint_id}/reflections", reflection_data(checkpoint_id))
+        save_prediction(client, checkpoint_id)
         if checkpoint_id != "C0":
             post_ok(client, f"/task/{checkpoint_id}/apply")
+        finish_guided_records(client, checkpoint_id)
         post_ok(client, f"/task/{checkpoint_id}/complete")
 
-    post_ok(client, "/task/C2/reflections", reflection_data("C2"))
+    save_prediction(client, "C2")
     post_ok(client, "/task/C2/apply")
     workspace_page = client.get("/workspace?file=app.py")
     assert workspace_page.status_code == 200
@@ -85,32 +110,36 @@ def test_clean_student_completes_the_entire_browser_workflow(tmp_path: Path) -> 
         assert page.status == 200
         assert "校园实验室预约系统 dev-v0.1" in page.read().decode("utf-8")
     post_ok(client, "/student/stop", {"return_to": "/task/C2"})
+    finish_guided_records(client, "C2")
     post_ok(client, "/task/C2/complete")
 
     for checkpoint_id in ("C3", "C4", "C5"):
-        post_ok(client, f"/task/{checkpoint_id}/reflections", reflection_data(checkpoint_id))
+        save_prediction(client, checkpoint_id)
         post_ok(client, f"/task/{checkpoint_id}/apply")
         response = client.get(f"/task/{checkpoint_id}")
         assert response.status_code == 200
+        finish_guided_records(client, checkpoint_id)
         post_ok(client, f"/task/{checkpoint_id}/complete")
 
-    post_ok(client, "/task/C6/reflections", reflection_data("C6"))
+    save_prediction(client, "C6")
     post_ok(client, "/task/C6/apply")
     response = post_ok(client, "/tests/run")
     assert "尚无测试用例" in response.get_data(as_text=True)
     assert engine.get_state("ACCEPT001")["last_test"]["kind"] == "empty_collection"
+    finish_guided_records(client, "C6")
     post_ok(client, "/task/C6/complete")
 
     post_ok(client, "/tests/save", manual_test_form())
     state = engine.get_state("ACCEPT001")
     assert all(item["conclusion"] == "通过" for item in state["manual_tests"])
-    post_ok(client, "/task/C7/reflections", reflection_data("C7"))
+    save_prediction(client, "C7")
     post_ok(client, "/task/C7/apply")
     response = post_ok(client, "/tests/run")
     assert "6 passed" in response.get_data(as_text=True)
+    finish_guided_records(client, "C7")
     post_ok(client, "/task/C7/complete")
 
-    post_ok(client, "/task/C8/reflections", reflection_data("C8"))
+    save_prediction(client, "C8")
     post_ok(client, "/task/C8/apply")
     response = post_ok(client, "/fault/inject")
     assert "TemplateNotFound" in response.get_data(as_text=True)
@@ -122,6 +151,7 @@ def test_clean_student_completes_the_entire_browser_workflow(tmp_path: Path) -> 
     assert "故障已恢复" in response.get_data(as_text=True)
     post_ok(client, "/tests/run")
     assert engine.get_state("ACCEPT001")["last_test"]["passed_count"] == 6
+    finish_guided_records(client, "C8")
 
     response = post_ok(
         client,

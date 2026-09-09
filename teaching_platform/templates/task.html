@@ -1,129 +1,304 @@
 {% extends "base.html" %}
 {% block title %}{{ checkpoint_id }} {{ definition.title }}{% endblock %}
 {% block content %}
-<section class="page-heading">
-    <span class="eyebrow">{{ checkpoint_id }} · {{ '已完成' if status.status == 'completed' else '当前任务' }}</span>
+<section class="page-heading lesson-heading">
+    <a class="back-link" href="{{ url_for('dashboard') }}">← 返回任务总览</a>
+    <span class="eyebrow">{{ checkpoint_id }} · {{ '已完成' if status.status == 'completed' else '当前关卡' }}</span>
     <h1>{{ definition.title }}</h1>
-    <p>{{ definition.summary }}</p>
 </section>
 
-<div class="lesson-layout">
+<section class="focus-banner">
+    <div>
+        <span>你现在要做什么</span>
+        <strong>{{ definition.guide.goal }}</strong>
+    </div>
+    <p>{{ definition.guide.outcome }}</p>
+</section>
+
+<ol class="lesson-stepper" aria-label="本关学习步骤">
+    {% for step_key, step_name in phase_steps %}
+    <li class="{% if loop.index0 < phase_index %}done{% elif loop.index0 == phase_index %}current{% else %}future{% endif %}">
+        <span>{{ '✓' if loop.index0 < phase_index else loop.index }}</span>
+        <b>{{ step_name }}</b>
+    </li>
+    {% endfor %}
+</ol>
+
+<div class="lesson-layout guided-layout">
     <div class="lesson-main">
-        <section class="panel">
-            <h2>1. 教师讲解的关键知识</h2>
-            <ul class="clean-list">{% for item in definition.knowledge %}<li>{{ item }}</li>{% endfor %}</ul>
-        </section>
-
-        <section class="panel think-panel">
-            <h2>2. 操作前先思考</h2>
-            <ul class="question-list">{% for item in definition.questions %}<li>{{ item }}</li>{% endfor %}</ul>
-            {% if status.status == 'completed' %}
-                <div class="record-block"><b>我的预测</b><p>{{ task_state.prediction }}</p><b>我的观察</b><p>{{ task_state.observation }}</p><b>我的解释</b><p>{{ task_state.explanation }}</p></div>
-            {% else %}
-            <form method="post" action="{{ url_for('save_reflections', checkpoint_id=checkpoint_id) }}">
-                <label>操作前预测 <span class="required">必须在应用检查点之前填写</span>
-                    <textarea name="prediction" rows="4" placeholder="我预计文件、页面或测试会发生……" required>{{ task_state.prediction }}</textarea>
-                </label>
-                <label>操作后观察
-                    <textarea name="observation" rows="4" placeholder="我实际看到的文件、页面、日志或测试结果是……">{{ task_state.observation }}</textarea>
-                </label>
-                <label>原理解释
-                    <textarea name="explanation" rows="4" placeholder="出现这一结果是因为……">{{ task_state.explanation }}</textarea>
-                </label>
-                <button class="button secondary" type="submit">保存思考记录</button>
-            </form>
-            {% endif %}
-        </section>
-
-        <section class="panel action-panel">
-            <h2>3. 学生亲手操作</h2>
-            <ol>{% for item in definition.operations %}<li>{{ item }}</li>{% endfor %}</ol>
-            <div class="expected-result"><b>本步正确可见结果</b><p>{{ definition.result }}</p></div>
-
-            {% if status.status != 'completed' %}
-            <div class="button-row wrap">
-                {% if checkpoint_id != 'C0' and not task_state.applied %}
-                <form action="{{ url_for('apply_checkpoint', checkpoint_id=checkpoint_id) }}" method="post"><button class="button primary" type="submit">应用 {{ checkpoint_id }} 准确文件</button></form>
-                {% endif %}
-                {% if task_state.applied %}
-                <form action="{{ url_for('verify_checkpoint', checkpoint_id=checkpoint_id) }}" method="post"><button class="button secondary" type="submit">检查文件与行为</button></form>
-                {% if checkpoint_id not in ('C0', 'C1') %}
-                    {% if server %}
-                    <a class="button primary" target="_blank" rel="noopener" href="{{ server.url }}">打开学生项目</a>
-                    <form action="{{ url_for('stop_student') }}" method="post"><input type="hidden" name="return_to" value="{{ url_for('task', checkpoint_id=checkpoint_id) }}"><button class="button secondary" type="submit">停止项目</button></form>
-                    {% else %}
-                    <form action="{{ url_for('start_student') }}" method="post"><input type="hidden" name="return_to" value="{{ url_for('task', checkpoint_id=checkpoint_id) }}"><button class="button secondary" type="submit">启动学生项目</button></form>
-                    {% endif %}
-                {% endif %}
-                {% endif %}
-                {% if checkpoint_id in ('C6', 'C7', 'C8') %}<a class="button secondary" href="{{ url_for('tests_page') }}">进入测试页</a>{% endif %}
+        {% if status.status == 'completed' %}
+        <section class="panel completion-panel">
+            <span class="completion-mark">✓</span>
+            <div>
+                <p class="section-kicker">本关已经完成</p>
+                <h2>你的操作与理解都已保存</h2>
+                <p>下面是这一步留下的学习证据。以后回看时，你能知道自己做了什么，而不只知道“点过一个按钮”。</p>
             </div>
-            {% endif %}
         </section>
 
-        {% if checkpoint_id == 'C8' and status.status != 'completed' and task_state.applied %}
-        <section class="panel fault-panel">
-            <h2>4. 受控故障与恢复</h2>
-            {% if not state.fault %}
-                <p>平台会先备份再暂时移出 <code>templates/index.html</code>。这是一项可恢复的课堂故障。</p>
-                <form action="{{ url_for('inject_fault') }}" method="post"><button class="button danger" type="submit">注入首页模板缺失故障</button></form>
-            {% elif state.fault.status == 'injected' %}
-                <p class="failure"><b>已观察到 {{ state.fault.type }}</b></p>
-                <pre class="log-box">{{ state.fault.evidence }}</pre>
-                <form action="{{ url_for('restore_fault') }}" method="post">
-                    <label>我的故障判断依据 <span class="required">先判断，后恢复</span><textarea name="diagnosis" rows="4" required placeholder="我看到……，因此判断……，应检查……"></textarea></label>
-                    <button class="button primary" type="submit">提交判断并恢复准确模板</button>
-                </form>
-            {% else %}
-                <p class="success-text"><b>故障已恢复。</b>判断记录：{{ state.fault.diagnosis }}</p>
-                <p>下一步：到测试页重新运行全部测试。旧的 6 passed 不能作为恢复后的证据。</p>
-            {% endif %}
+        <section class="panel saved-records">
+            <h2>我的本关记录</h2>
+            <div class="saved-record"><span>事前判断</span><p>{{ task_state.prediction }}</p></div>
+            <div class="saved-record"><span>亲眼所见</span><p>{{ task_state.observation }}</p></div>
+            <div class="saved-record"><span>一句话结论</span><p>{{ task_state.explanation }}</p></div>
+        </section>
+
+        {% if next_checkpoint %}
+        <section class="panel next-panel">
+            <div>
+                <p class="section-kicker">下一关</p>
+                <h2>{{ next_checkpoint }} {{ task_definitions[next_checkpoint].title }}</h2>
+                <p>{{ task_definitions[next_checkpoint].guide.goal }}</p>
+            </div>
+            <a class="button primary" href="{{ url_for('task', checkpoint_id=next_checkpoint) }}">进入下一关 →</a>
         </section>
         {% endif %}
 
-        {% if status.status != 'completed' %}
-        <section class="panel gate-panel">
-            <h2>{{ '5' if checkpoint_id == 'C8' else '4' }}. 完成本步门禁</h2>
-            <p><b>你需要解释：</b>{{ definition.explain }}</p>
-            {% if checkpoint_id == 'C8' %}
-                <form action="{{ url_for('freeze_release') }}" method="post">
-                    <label>Git 提交说明<input name="commit_message" required value="feat: complete static prototype for dev-v0.1"></label>
-                    <button class="button primary" type="submit">核对13文件并冻结 dev-v0.1</button>
+        {% else %}
+            {% if phase == 'predict' %}
+            <section class="panel current-step-panel" data-phase="predict">
+                <div class="step-heading">
+                    <span class="step-number">第1步</span>
+                    <div><p class="section-kicker">先作判断</p><h2>选出你认为会发生的情况</h2></div>
+                </div>
+                <p class="question-text">{{ definition.guide.prediction.question }}</p>
+                <p class="help-text">{{ definition.guide.prediction.hint }}</p>
+                <form method="post" action="{{ url_for('save_prediction', checkpoint_id=checkpoint_id) }}" class="choice-form">
+                    <fieldset class="choice-list">
+                        <legend class="sr-only">请选择一个答案</legend>
+                        {% for option in definition.guide.prediction.options %}
+                        <label class="choice-card">
+                            <input type="radio" name="choice" value="{{ option.id }}" required>
+                            <span class="choice-letter">{{ option.id }}</span>
+                            <span>{{ option.text }}</span>
+                        </label>
+                        {% endfor %}
+                    </fieldset>
+                    <button class="button primary next-button" type="submit">保存选择，进入下一步 →</button>
                 </form>
+            </section>
             {% else %}
-                <form action="{{ url_for('complete_task', checkpoint_id=checkpoint_id) }}" method="post"><button class="button primary" type="submit">验证并完成 {{ checkpoint_id }}</button></form>
+            <section class="saved-answer-bar" aria-label="已保存的事前判断">
+                <div>
+                    <span class="saved-check">✓</span>
+                    <div><small>你的事前判断已保存</small><strong>{{ task_state.prediction }}</strong></div>
+                </div>
+                <span class="saved-time">{{ task_state.prediction_saved_at[0:19] | replace('T', ' ') if task_state.prediction_saved_at else '' }}</span>
+            </section>
+            <section class="feedback-box {{ 'correct' if task_state.prediction_choice == definition.guide.prediction.answer else 'learn' }}">
+                <b>{{ '判断与实际一致' if task_state.prediction_choice == definition.guide.prediction.answer else '预测不同也没关系，接下来亲手验证' }}</b>
+                <p>{{ definition.guide.prediction.feedback }}</p>
+            </section>
             {% endif %}
-        </section>
+
+            {% if phase == 'build' %}
+            <section class="panel current-step-panel" data-phase="build">
+                <div class="step-heading">
+                    <span class="step-number">第2步</span>
+                    <div><p class="section-kicker">生成本步变化</p><h2>{{ definition.guide.apply.title }}</h2></div>
+                </div>
+                <p>{{ definition.guide.apply.description }}</p>
+                <div class="change-preview">
+                    <div><span>将新增</span><strong>{{ checkpoint.delta_from_previous.added | length }}</strong><small>个文件</small></div>
+                    <div><span>将修改</span><strong>{{ checkpoint.delta_from_previous.modified | length }}</strong><small>个文件</small></div>
+                    <div><span>执行方式</span><strong>平台</strong><small>准确生成</small></div>
+                </div>
+                {% if checkpoint_id == 'C7' and not manual_complete %}
+                <div class="instruction-callout">
+                    <b>现在先做手工测试</b>
+                    <p>在加入自动测试之前，请到测试页完成5项手工用例的“预期—操作—实际—结论”。</p>
+                    <a class="button primary" href="{{ url_for('tests_page') }}">去完成5项手工测试 →</a>
+                </div>
+                {% else %}
+                <form action="{{ url_for('apply_checkpoint', checkpoint_id=checkpoint_id) }}" method="post">
+                    <button class="button primary next-button" type="submit">{{ definition.guide.apply.button }} →</button>
+                </form>
+                {% endif %}
+            </section>
+            {% endif %}
+
+            {% if phase == 'experience' %}
+            <section class="panel current-step-panel" data-phase="experience">
+                <div class="step-heading">
+                    <span class="step-number">第3步</span>
+                    <div><p class="section-kicker">亲手体验</p><h2>{{ definition.guide.experience.title }}</h2></div>
+                </div>
+                <p class="instruction-lead">{{ definition.guide.experience.instruction }}</p>
+                <ol class="action-checklist">
+                    {% for item in definition.guide.experience.steps %}<li><span>{{ loop.index }}</span><p>{{ item }}</p></li>{% endfor %}
+                </ol>
+
+                <div class="tool-box">
+                    <p class="tool-box-title">操作入口</p>
+                    <div class="button-row wrap">
+                        {% if checkpoint_id == 'C0' %}
+                        <a class="button secondary" href="{{ url_for('workspace', file='.gitignore') }}">打开文件观察器</a>
+                        {% elif checkpoint_id == 'C1' %}
+                        <a class="button secondary" href="{{ url_for('workspace') }}">打开目录观察器</a>
+                        {% elif checkpoint_id == 'C2' %}
+                        <a class="button secondary" href="{{ url_for('workspace', file='app.py') }}">查看 app.py</a>
+                        {% elif checkpoint_id == 'C3' %}
+                        <a class="button secondary" href="{{ url_for('workspace', file='templates/index.html') }}">查看首页模板</a>
+                        {% elif checkpoint_id == 'C4' %}
+                        <a class="button secondary" href="{{ url_for('workspace', file='templates/labs.html') }}">查看列表模板</a>
+                        {% elif checkpoint_id == 'C5' %}
+                        <a class="button secondary" href="{{ url_for('workspace', file='app.py') }}">查看最终 app.py</a>
+                        {% elif checkpoint_id == 'C6' %}
+                        <a class="button secondary" href="{{ url_for('workspace', file='运行测试.bat') }}">查看测试入口</a>
+                        {% elif checkpoint_id == 'C7' %}
+                        <a class="button secondary" href="{{ url_for('workspace', file='tests/test_app.py') }}">查看自动测试文件</a>
+                        {% else %}
+                        <a class="button secondary" href="{{ url_for('workspace', file='templates/index.html') }}">查看首页模板</a>
+                        {% endif %}
+
+                        {% if checkpoint_id not in ('C0', 'C1') %}
+                            {% if server %}
+                            <a class="button primary" target="_blank" rel="noopener" href="{{ server.url }}">打开学生项目 ↗</a>
+                            <form action="{{ url_for('stop_student') }}" method="post"><input type="hidden" name="return_to" value="{{ url_for('task', checkpoint_id=checkpoint_id) }}"><button class="button secondary" type="submit">停止项目</button></form>
+                            {% else %}
+                            <form action="{{ url_for('start_student') }}" method="post"><input type="hidden" name="return_to" value="{{ url_for('task', checkpoint_id=checkpoint_id) }}"><button class="button primary" type="submit">启动学生项目</button></form>
+                            {% endif %}
+                        {% endif %}
+                        {% if checkpoint_id in ('C6', 'C7', 'C8') %}<a class="button secondary" href="{{ url_for('tests_page') }}">进入测试页</a>{% endif %}
+                    </div>
+                </div>
+
+                {% if checkpoint_id == 'C8' %}
+                <div class="fault-workflow">
+                    {% if not state.fault %}
+                    <div class="instruction-callout warning-callout">
+                        <b>尚未注入故障</b>
+                        <p>平台会先备份，再暂时移出 templates/index.html。随时可以准确恢复。</p>
+                        <form action="{{ url_for('inject_fault') }}" method="post"><button class="button danger" type="submit">注入可恢复故障</button></form>
+                    </div>
+                    {% elif state.fault.status == 'injected' %}
+                    <div class="instruction-callout error-callout">
+                        <b>已捕获 {{ state.fault.type }}</b>
+                        <pre class="log-box">{{ state.fault.evidence }}</pre>
+                        <form action="{{ url_for('restore_fault') }}" method="post" class="compact-form">
+                            <label>根据上面的证据，你判断哪里出了问题？
+                                <textarea name="diagnosis" rows="3" required placeholder="我看到 TemplateNotFound……，因此判断……"></textarea>
+                            </label>
+                            <button class="button primary" type="submit">保存判断并恢复模板 →</button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <div class="instruction-callout success-callout">
+                        <b>故障已恢复</b>
+                        <p>你的判断：{{ state.fault.diagnosis }}</p>
+                        <p>现在去测试页重新运行全部测试。必须是恢复之后产生的新一次 6 passed。</p>
+                        <a class="button primary" href="{{ url_for('tests_page') }}">去运行回归测试 →</a>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if action_readiness.ready %}
+                <form action="{{ url_for('confirm_action', checkpoint_id=checkpoint_id) }}" method="post" class="confirm-form">
+                    <label class="confirm-check"><input type="checkbox" required><span>我确认：上面的操作是我亲手完成的，看到的结果不是凭说明猜的。</span></label>
+                    <button class="button primary next-button" type="submit">{{ definition.guide.experience.confirm }} →</button>
+                </form>
+                {% else %}
+                <div class="pending-gate"><b>还不能进入下一步</b><p>{{ action_readiness.reason }}</p></div>
+                {% endif %}
+            </section>
+            {% endif %}
+
+            {% if phase == 'observe' %}
+            <section class="panel current-step-panel" data-phase="observe">
+                <div class="step-heading">
+                    <span class="step-number">第4步</span>
+                    <div><p class="section-kicker">核对现象</p><h2>{{ definition.guide.observation.question }}</h2></div>
+                </div>
+                <p class="help-text">这不是让你写作文。每一项都必须来自刚才的实际操作；如果有一项没有看到，请返回上一步继续检查。</p>
+                <form method="post" action="{{ url_for('save_observation', checkpoint_id=checkpoint_id) }}" class="observation-form">
+                    <div class="observation-list">
+                        {% for item in definition.guide.observation['items'] %}
+                        <label class="observation-item"><input type="checkbox" name="observations" value="{{ item.id }}" required><span>{{ item.text }}</span></label>
+                        {% endfor %}
+                    </div>
+                    <button class="button primary next-button" type="submit">保存我亲眼看到的结果 →</button>
+                </form>
+            </section>
+            {% endif %}
+
+            {% if phase == 'explain' %}
+            <section class="panel current-step-panel" data-phase="explain">
+                <div class="step-heading">
+                    <span class="step-number">第5步</span>
+                    <div><p class="section-kicker">说清原理</p><h2>{{ definition.guide.explanation.question }}</h2></div>
+                </div>
+                <div class="observation-saved"><span>✓</span><p>你刚才勾选的 {{ task_state.observation_items | length }} 项实际观察已经保存。</p></div>
+                <form method="post" action="{{ url_for('save_explanation', checkpoint_id=checkpoint_id) }}" class="explanation-form">
+                    <label>我的一句话结论
+                        <textarea name="explanation" rows="3" maxlength="500" required placeholder="{{ definition.guide.explanation.starter }}"></textarea>
+                    </label>
+                    <p class="example-text"><b>参考句式（不要照抄）：</b>{{ definition.guide.explanation.example }}</p>
+                    <button class="button primary next-button" type="submit">保存结论，进入完成检查 →</button>
+                </form>
+            </section>
+            {% endif %}
+
+            {% if phase == 'finish' %}
+            <section class="panel current-step-panel finish-panel" data-phase="finish">
+                <div class="step-heading">
+                    <span class="step-number">第6步</span>
+                    <div><p class="section-kicker">完成本关</p><h2>三项学习证据都已保存</h2></div>
+                </div>
+                <div class="finish-summary">
+                    <div><span>✓ 事前判断</span><p>{{ task_state.prediction }}</p></div>
+                    <div><span>✓ 实际观察</span><p>已核对 {{ task_state.observation_items | length }} 项结果</p></div>
+                    <div><span>✓ 一句话结论</span><p>{{ task_state.explanation }}</p></div>
+                </div>
+                <p class="help-text">单击后，平台会自动核对文件与页面行为。通过后才会解锁下一关。</p>
+                {% if checkpoint_id == 'C8' %}
+                <form action="{{ url_for('freeze_release') }}" method="post" class="compact-form">
+                    <label>这次里程碑的 Git 提交说明
+                        <input name="commit_message" required value="feat: complete static prototype for dev-v0.1">
+                    </label>
+                    <button class="button primary next-button" type="submit">核对13个文件并冻结 dev-v0.1 →</button>
+                </form>
+                {% else %}
+                <form action="{{ url_for('complete_task', checkpoint_id=checkpoint_id) }}" method="post">
+                    <button class="button primary next-button" type="submit">自动核对并完成 {{ checkpoint_id }} →</button>
+                </form>
+                {% endif %}
+            </section>
+            {% endif %}
         {% endif %}
+
+        <details class="panel knowledge-drawer">
+            <summary>需要时查看：本步知识提示</summary>
+            <p class="help-text">这部分供老师讲解、学生复习使用，不是当前要填写的表单。</p>
+            <ul class="clean-list">{% for item in definition.knowledge %}<li>{{ item }}</li>{% endfor %}</ul>
+        </details>
     </div>
 
     <aside class="lesson-side">
-        <section class="panel sticky-panel">
-            <h2>检查点证据</h2>
-            <dl class="facts vertical">
-                <div><dt>文件已应用</dt><dd>{{ '是' if task_state.applied else '否' }}</dd></div>
-                <div><dt>最近验证</dt><dd>{{ '通过' if task_state.verified else '待通过' }}</dd></div>
-                <div><dt>任务状态</dt><dd>{{ '已完成' if task_state.completed else '进行中' }}</dd></div>
-                <div><dt>网站状态</dt><dd>{{ checkpoint.website_state }}</dd></div>
-            </dl>
-            <a class="button secondary full" href="{{ url_for('workspace') }}">查看当前文件树</a>
+        <section class="panel sticky-panel progress-panel">
+            <p class="student-workspace">{{ state.profile.student_id }} · {{ state.profile.name }}</p>
+            <p class="section-kicker">本关进度</p>
+            <div class="progress-number">
+                <strong>{{ 6 if phase == 'completed' else phase_index + 1 }}</strong><span>/ 6 步</span>
+            </div>
+            <div class="progress-track"><span style="width: {{ 100 if phase == 'completed' else ((phase_index + 1) * 100 / 6) }}%"></span></div>
+            <h2>{{ phase_label }}</h2>
+            <p class="current-action">现在：{{ phase_action }}</p>
 
-            {% if task_state.applied %}
-            <h3>本步新增</h3>
-            <ul class="file-list">
-                {% for path in checkpoint.delta_from_previous.added %}<li><a href="{{ url_for('compare', checkpoint_id=checkpoint_id, relative_path=path) }}">{{ path }}</a></li>{% else %}<li>无新增文件</li>{% endfor %}
+            <ul class="evidence-checklist">
+                <li class="{{ 'done' if task_state.prediction else '' }}"><span>{{ '✓' if task_state.prediction else '1' }}</span>已作事前判断</li>
+                <li class="{{ 'done' if task_state.applied and task_state.prediction else '' }}"><span>{{ '✓' if task_state.applied and task_state.prediction else '2' }}</span>本步文件已准备</li>
+                <li class="{{ 'done' if task_state.action_confirmed else '' }}"><span>{{ '✓' if task_state.action_confirmed else '3' }}</span>已亲手完成操作</li>
+                <li class="{{ 'done' if task_state.observation else '' }}"><span>{{ '✓' if task_state.observation else '4' }}</span>已核对实际现象</li>
+                <li class="{{ 'done' if task_state.explanation else '' }}"><span>{{ '✓' if task_state.explanation else '5' }}</span>已说清本步原理</li>
             </ul>
-            {% if checkpoint.delta_from_previous.modified %}
-            <h3>本步修改</h3><ul class="file-list">{% for path in checkpoint.delta_from_previous.modified %}<li><a href="{{ url_for('compare', checkpoint_id=checkpoint_id, relative_path=path) }}">{{ path }}</a></li>{% endfor %}</ul>
-            {% endif %}
-            {% endif %}
 
-            {% if task_state.verification %}
-            <h3>最近核对</h3>
-            <p class="{{ 'success-text' if task_state.verification.passed else 'failure' }}">{{ '全部通过' if task_state.verification.passed else '存在问题' }}</p>
-            {% endif %}
+            <div class="side-links">
+                <a href="{{ url_for('workspace') }}">查看当前项目文件</a>
+                {% if checkpoint_id in ('C6', 'C7', 'C8') %}<a href="{{ url_for('tests_page') }}">查看测试记录</a>{% endif %}
+                <a href="{{ url_for('dashboard') }}">返回全部关卡</a>
+            </div>
         </section>
-        {% if checkpoint_id not in ('C0', 'C1') %}<section class="panel"><h2>最近运行日志</h2><pre class="log-box compact">{{ log }}</pre></section>{% endif %}
     </aside>
 </div>
 {% endblock %}

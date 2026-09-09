@@ -21,7 +21,7 @@ from flask import (
 )
 
 from .content import CHECKPOINT_ORDER, MANUAL_TEST_SCENARIOS, TASKS
-from .engine import PlatformError, TeachingEngine
+from .engine import PHASE_ACTIONS, PHASE_LABELS, PlatformError, TeachingEngine
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -93,6 +93,9 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         )
         session["student_id"] = state["profile"]["student_id"]
         flash("个人工作区已创建，S0基线已建立。" if created else "已继续原有学习进度。", "success")
+        active = engine.active_checkpoint(state)
+        if active:
+            return redirect(url_for("task", checkpoint_id=active))
         return redirect(url_for("dashboard"))
 
     @app.post("/leave")
@@ -110,10 +113,14 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     def dashboard() -> str:
         student_id = current_student_id()
         state = engine.get_state(student_id)
+        statuses = engine.task_statuses(state)
         return render_template(
             "dashboard.html",
             state=state,
-            statuses=engine.task_statuses(state),
+            statuses=statuses,
+            active_status=next(
+                (item for item in statuses if item["status"] == "active"), None
+            ),
             server=engine.server_status(student_id),
         )
 
@@ -128,6 +135,16 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if status["status"] == "locked":
             raise PlatformError("该任务尚未解锁，请按 C0—C8 顺序完成。")
         checkpoint = engine.checkpoints[checkpoint_id]
+        phase = engine.task_phase(state, checkpoint_id)
+        action_readiness = engine.action_readiness(state, checkpoint_id)
+        position = CHECKPOINT_ORDER.index(checkpoint_id)
+        next_checkpoint = (
+            CHECKPOINT_ORDER[position + 1]
+            if position + 1 < len(CHECKPOINT_ORDER)
+            else None
+        )
+        phase_order = ("predict", "build", "experience", "observe", "explain", "finish")
+        phase_index = len(phase_order) if phase == "completed" else phase_order.index(phase)
         return render_template(
             "task.html",
             checkpoint_id=checkpoint_id,
@@ -138,26 +155,63 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             state=state,
             server=engine.server_status(student_id),
             log=engine.read_student_log(student_id),
+            phase=phase,
+            phase_label=PHASE_LABELS[phase],
+            phase_action=PHASE_ACTIONS[phase],
+            action_readiness=action_readiness,
+            manual_complete=engine._manual_tests_complete(state),
+            next_checkpoint=next_checkpoint,
+            phase_index=phase_index,
+            phase_steps=(
+                ("predict", "先判断"),
+                ("build", "生成变化"),
+                ("experience", "亲手体验"),
+                ("observe", "核对现象"),
+                ("explain", "说清原理"),
+                ("finish", "完成本关"),
+            ),
         )
 
-    @app.post("/task/<checkpoint_id>/reflections")
+    @app.post("/task/<checkpoint_id>/prediction")
     @require_student
-    def save_reflections(checkpoint_id: str) -> Any:
-        engine.save_reflections(
+    def save_prediction(checkpoint_id: str) -> Any:
+        state = engine.save_prediction(
             current_student_id(),
             checkpoint_id,
-            request.form.get("prediction", ""),
-            request.form.get("observation", ""),
-            request.form.get("explanation", ""),
+            request.form.get("choice", ""),
         )
-        flash("思考记录已保存。", "success")
+        selected = state["tasks"][checkpoint_id]["prediction"]
+        flash(f"已保存你的选择：{selected}。下一步已经解锁。", "success")
+        return redirect(url_for("task", checkpoint_id=checkpoint_id))
+
+    @app.post("/task/<checkpoint_id>/action-confirmed")
+    @require_student
+    def confirm_action(checkpoint_id: str) -> Any:
+        engine.confirm_action(current_student_id(), checkpoint_id)
+        flash("已记录：你完成了亲手操作。下一步请核对实际看到的结果。", "success")
+        return redirect(url_for("task", checkpoint_id=checkpoint_id))
+
+    @app.post("/task/<checkpoint_id>/observation")
+    @require_student
+    def save_observation(checkpoint_id: str) -> Any:
+        selected = request.form.getlist("observations")
+        engine.save_observation(current_student_id(), checkpoint_id, selected)
+        flash(f"已保存 {len(selected)} 项实际观察。下一步请用一句话说清原理。", "success")
+        return redirect(url_for("task", checkpoint_id=checkpoint_id))
+
+    @app.post("/task/<checkpoint_id>/explanation")
+    @require_student
+    def save_explanation(checkpoint_id: str) -> Any:
+        answer = request.form.get("explanation", "")
+        engine.save_explanation(current_student_id(), checkpoint_id, answer)
+        flash(f"一句话结论已保存：{answer.strip()}。现在可以完成本关。", "success")
         return redirect(url_for("task", checkpoint_id=checkpoint_id))
 
     @app.post("/task/<checkpoint_id>/apply")
     @require_student
     def apply_checkpoint(checkpoint_id: str) -> Any:
         engine.apply_checkpoint(current_student_id(), checkpoint_id)
-        flash(f"{checkpoint_id} 已准确应用。请亲自操作并记录观察。", "success")
+        flash(f"{checkpoint_id} 文件已生成并自动核对通过。下一步请按清单亲手体验。", "success")
         return redirect(url_for("task", checkpoint_id=checkpoint_id))
 
     @app.post("/task/<checkpoint_id>/verify")
@@ -171,7 +225,15 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     @require_student
     def complete_task(checkpoint_id: str) -> Any:
         engine.complete_task(current_student_id(), checkpoint_id)
-        flash(f"{checkpoint_id} 已完成，下一检查点已解锁。", "success")
+        position = CHECKPOINT_ORDER.index(checkpoint_id)
+        if position + 1 < len(CHECKPOINT_ORDER):
+            next_id = CHECKPOINT_ORDER[position + 1]
+            flash(
+                f"{checkpoint_id} 已完成。下一关：{next_id} {TASKS[next_id]['title']}。",
+                "success",
+            )
+            return redirect(url_for("task", checkpoint_id=next_id))
+        flash(f"{checkpoint_id} 已完成。", "success")
         return redirect(url_for("dashboard"))
 
     @app.post("/student/start")
@@ -208,11 +270,29 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     def tests_page() -> str:
         student_id = current_student_id()
         state = engine.get_state(student_id)
+        active = engine.active_checkpoint(state)
+        active_position = (
+            CHECKPOINT_ORDER.index(active) if active else len(CHECKPOINT_ORDER)
+        )
+        first_incomplete = next(
+            (
+                index
+                for index, case in enumerate(state["manual_tests"])
+                if case.get("conclusion") != "通过"
+                or not case.get("expected", "").strip()
+                or not case.get("actual", "").strip()
+            ),
+            None,
+        )
         return render_template(
             "tests.html",
             state=state,
             server=engine.server_status(student_id),
             manual_complete=engine._manual_tests_complete(state),
+            manual_scenarios=MANUAL_TEST_SCENARIOS,
+            active_checkpoint=active,
+            active_position=active_position,
+            first_incomplete=first_incomplete,
         )
 
     @app.post("/tests/save")
@@ -231,8 +311,19 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                     "conclusion": request.form.get(prefix + "conclusion", ""),
                 }
             )
-        engine.save_manual_tests(current_student_id(), cases)
-        flash("手工测试记录已保存。", "success")
+        state = engine.save_manual_tests(current_student_id(), cases)
+        completed = sum(
+            1
+            for case in state["manual_tests"]
+            if case.get("conclusion") == "通过"
+            and case.get("expected", "").strip()
+            and case.get("actual", "").strip()
+        )
+        flash(
+            f"手工测试进度已保存：{completed}/5 项通过。"
+            + ("现在可以返回 C7 加入自动测试。" if completed == 5 else "请继续下一项。"),
+            "success",
+        )
         return redirect(url_for("tests_page"))
 
     @app.post("/tests/run")
