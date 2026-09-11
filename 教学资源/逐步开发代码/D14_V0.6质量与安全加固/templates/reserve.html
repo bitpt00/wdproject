@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}提交预约｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div class="container">
+        <a class="back-link" href="{{ url_for('lab_detail', lab_id=slot.lab.id) }}">← 返回实验室详情</a>
+        <p class="eyebrow">学生预约申请</p>
+        <h1>{{ slot.lab.name }}</h1>
+        <p>{{ slot.date_label }} · {{ slot.time_label }} · 最多{{ slot.lab.capacity }}人</p>
+    </div>
+</section>
+
+<section class="section compact-top">
+    <div class="container form-layout">
+        <form class="reservation-form" method="post" action="{{ url_for('reserve', slot_id=slot.id) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <div class="form-row">
+                <label for="purpose">使用目的</label>
+                <textarea id="purpose" name="purpose" rows="4" required placeholder="例如：数字媒体课程作品展示">{{ form_data.purpose }}</textarea>
+            </div>
+            <div class="form-columns">
+                <div class="form-row">
+                    <label for="attendee_count">参加人数</label>
+                    <input id="attendee_count" name="attendee_count" type="number" min="1" max="{{ slot.lab.capacity }}" value="{{ form_data.attendee_count }}" required>
+                </div>
+                <div class="form-row">
+                    <label for="contact">联系方式</label>
+                    <input id="contact" name="contact" value="{{ form_data.contact }}" required placeholder="手机或校园短号">
+                </div>
+            </div>
+            <button class="button primary full" type="submit">确认提交预约</button>
+        </form>
+
+        <aside class="stage-panel">
+            <span class="prototype-label">本次申请人</span>
+            <h2>{{ g.user.display_name }}</h2>
+            <div class="stage-item"><strong>账号</strong><p>{{ g.user.username }}</p></div>
+            <div class="stage-item"><strong>所属专业</strong><p>{{ g.user.department }}</p></div>
+            <div class="stage-item next"><strong>提交后状态</strong><p>待审批（dev-v0.5由教师处理）</p></div>
+        </aside>
+    </div>
+</section>
+{% endblock %}

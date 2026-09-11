@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}实验室管理｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div class="container">
+        <p class="eyebrow">实验室管理员工作区</p>
+        <h1>实验室管理</h1>
+        <p>调整实验室服务状态。存在有效预约时，系统会阻止直接停用。</p>
+    </div>
+</section>
+
+<section class="section compact-top">
+    <div class="container lab-grid">
+        {% for lab in labs %}
+        <article class="lab-card">
+            <div class="lab-card-top">
+                <span class="lab-id">LAB-{{ "%03d"|format(lab.id) }}</span>
+                <span class="status {{ 'open' if lab.is_available else 'closed' }}">{{ lab.status }}</span>
+            </div>
+            <h2>{{ lab.name }}</h2>
+            <dl class="lab-details">
+                <div><dt>位置</dt><dd>{{ lab.location }}</dd></div>
+                <div><dt>容量</dt><dd>{{ lab.capacity }}人</dd></div>
+            </dl>
+            <form method="post" action="{{ url_for('toggle_lab', lab_id=lab.id) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                {% if lab.is_available %}
+                <button class="button danger full" type="submit">设为维护中</button>
+                {% else %}
+                <button class="button primary full" type="submit">恢复开放</button>
+                {% endif %}
+            </form>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

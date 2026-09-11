@@ -1,7 +1,0 @@
-{% extends "base.html" %}
-{% block title %}代码差异 · {{ result.path }}{% endblock %}
-{% block content %}
-<section class="page-heading"><span class="eyebrow">{{ result.previous }} → {{ result.checkpoint }}</span><h1>{{ result.path }}</h1><p>绿色加号表示本步加入，红色减号表示被本步替换。先找变化，再说明变化带来的功能。</p></section>
-<section class="panel code-viewer diff-view"><pre><code>{{ result.diff }}</code></pre></section>
-<a class="button secondary" href="{{ url_for('task', checkpoint_id=result.checkpoint) }}">返回任务</a>
-{% endblock %}

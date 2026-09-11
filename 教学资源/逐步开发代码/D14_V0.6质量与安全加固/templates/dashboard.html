@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}工作台｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div class="container">
+        <p class="eyebrow">{{ g.user.role_name }}工作台</p>
+        <h1>{{ g.user.display_name }}，您好</h1>
+        <p>{{ g.user.department }} · 当前登录账号 {{ g.user.username }}</p>
+    </div>
+</section>
+
+<section class="section compact-top">
+    <div class="container dashboard-grid">
+        {% if g.user.role == 'student' %}
+        <article class="feature-card">
+            <span class="step-number">01</span>
+            <h2>查询实验室</h2>
+            <p>查询地点、设备和状态，为预约选择合适资源。</p>
+            <a class="text-link" href="{{ url_for('lab_list') }}">开始查询</a>
+        </article>
+        <article class="feature-card">
+            <span class="step-number">02</span>
+            <h2>我的预约</h2>
+            <p>已经提交 {{ my_booking_count }} 条申请，可以查看状态或取消申请。</p>
+            <a class="text-link" href="{{ url_for('my_bookings') }}">查看我的预约</a>
+        </article>
+        {% elif g.user.role == 'approver' %}
+        <article class="feature-card">
+            <span class="step-number">01</span>
+            <h2>审批队列</h2>
+            <p>当前有 {{ pending_count }} 条待审批申请，请核对实验室、时段、人数和用途。</p>
+            <a class="text-link" href="{{ url_for('approvals') }}">进入审批队列</a>
+        </article>
+        {% else %}
+        <article class="feature-card">
+            <span class="step-number">01</span>
+            <h2>实验室维护</h2>
+            <p>管理员身份已经识别，最终集成版加入状态维护入口。</p>
+            <span class="state prototype">功能尚未开放</span>
+        </article>
+        {% endif %}
+
+        <aside class="stage-panel">
+            <span class="prototype-label">dev-v0.5观察点</span>
+            <h2>状态如何发生变化</h2>
+            <p>预约从待审批变为已通过、已驳回或已取消；每次变化同时写入状态历史，记录操作者和意见。</p>
+        </aside>
+    </div>
+</section>
+{% endblock %}

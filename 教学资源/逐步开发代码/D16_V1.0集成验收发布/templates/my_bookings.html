@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}我的预约｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div class="container">
+        <p class="eyebrow">学生个人中心</p>
+        <h1>我的预约</h1>
+        <p>只显示当前登录学生自己提交的预约申请。</p>
+    </div>
+</section>
+
+<section class="section compact-top">
+    <div class="container">
+        <div class="list-toolbar">
+            <span>共 {{ bookings|length }} 条记录</span>
+            <a class="button primary" href="{{ url_for('lab_list') }}">新建预约</a>
+        </div>
+        <div class="booking-list">
+            {% for booking in bookings %}
+            <article class="booking-row">
+                <div>
+                    <span class="booking-no">{{ booking.booking_no }}</span>
+                    <h2>{{ booking.time_slot.lab.name }}</h2>
+                    <p>{{ booking.time_slot.date_label }} · {{ booking.time_slot.time_label }} · {{ booking.purpose }}</p>
+                </div>
+                <div class="booking-actions">
+                    <span class="status {{ booking.status_class }}">{{ booking.status_label }}</span>
+                    <a class="text-link" href="{{ url_for('booking_detail', booking_id=booking.id) }}">查看详情</a>
+                </div>
+            </article>
+            {% else %}
+            <div class="empty-state">
+                <h2>还没有预约记录</h2>
+                <p>先查询实验室，再选择一个开放时段。</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}个人页面｜校园实验室预约系统{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div class="container"><p class="eyebrow">D06 · 会话已经建立</p><h1>{{ g.user.display_name }}，登录成功</h1><p>{{ g.user.department }} · 当前账号 {{ g.user.username }}</p></div>
+</section>
+<section class="section compact-top">
+    <div class="container dashboard-grid">
+        <article class="feature-card"><span class="step-number">01</span><h2>登录会话已经建立</h2><p>继续打开实验室或首页，右上角仍会显示当前姓名，说明登录状态跨请求保存。</p><a class="text-link" href="{{ url_for('lab_list') }}">打开另一个页面</a></article>
+        <aside class="stage-panel"><span class="prototype-label">下一步</span><h2>D07 角色权限</h2><p>当前三个账号登录后看到同一个页面。下一步根据 role 字段显示不同工作台并限制路由。</p></aside>
+    </div>
+</section>
+{% endblock %}

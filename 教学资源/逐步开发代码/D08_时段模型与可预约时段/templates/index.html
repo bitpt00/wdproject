@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}首页｜校园实验室预约系统{% endblock %}
+{% block content %}
+<section class="hero"><div class="container hero-grid"><div><p class="eyebrow">D08 · 可预约资源</p><h1>实验室有了具体开放时段</h1><p class="hero-copy">一间实验室不等于任何时间都能使用。系统现在把日期、开始时间和结束时间保存为独立的 TimeSlot。</p><div class="hero-actions"><a class="button primary" href="{{ url_for('lab_list') }}">选择实验室查看时段</a></div></div><div class="prototype-card"><span class="prototype-label">本步数据</span><strong>{{ slot_count }} 条时段</strong><p>四间实验室各生成四条未来时段。</p><ul class="check-list"><li>时段通过外键属于实验室</li><li>页面只显示未来时段</li><li>维护中实验室不可预约</li><li>D09 再开放提交表单</li></ul></div></div></section>
+{% endblock %}

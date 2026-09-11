@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}首页｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="container hero-grid">
+        <div>
+            <p class="eyebrow">D02 · 页面结构与样式</p>
+            <h1>校园实验室预约与审批系统</h1>
+            <p class="hero-copy">
+                Flask 路由负责接收请求，Jinja2 模板负责组织页面，CSS 负责页面外观。
+                现在三部分已经连接起来。
+            </p>
+        </div>
+        <div class="prototype-card">
+            <span class="prototype-label">本步可见结果</span>
+            <strong>{{ checkpoint }}</strong>
+            <p>纯文字已经变成带统一布局和样式的网页。</p>
+            <ul class="check-list">
+                <li>顶部出现系统名称和首页导航</li>
+                <li>页面出现左右两栏</li>
+                <li>颜色、字号和间距已经生效</li>
+                <li>实验室和预约功能将在下一步加入</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-heading">
+            <p class="eyebrow">三个文件各负其责</p>
+            <h2>网页为什么发生了变化</h2>
+        </div>
+        <div class="feature-grid">
+            <article class="feature-card">
+                <span class="step-number">01</span>
+                <h3>app.py</h3>
+                <p>定义浏览器访问地址，并决定返回哪个模板。</p>
+                <span class="state available">处理请求</span>
+            </article>
+            <article class="feature-card">
+                <span class="step-number">02</span>
+                <h3>templates</h3>
+                <p>保存页面结构和要显示的内容。</p>
+                <span class="state prototype">生成 HTML</span>
+            </article>
+            <article class="feature-card">
+                <span class="step-number">03</span>
+                <h3>static</h3>
+                <p>保存 CSS，让同一份结构呈现统一外观。</p>
+                <span class="state later">控制样式</span>
+            </article>
+        </div>
+    </div>
+</section>
+{% endblock %}

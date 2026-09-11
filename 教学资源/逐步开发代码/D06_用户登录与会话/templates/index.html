@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}首页｜校园实验室预约系统{% endblock %}
+{% block content %}
+<section class="hero">
+    <div class="container hero-grid">
+        <div>
+            <p class="eyebrow">D06 · 身份验证</p>
+            <h1>系统开始认识当前用户</h1>
+            <p class="hero-copy">数据库新增用户，密码经过哈希校验；登录成功后，浏览器会话只保存用户编号。</p>
+            <div class="hero-actions"><a class="button primary" href="{{ url_for('login') }}">使用演示账号登录</a><a class="button secondary" href="{{ url_for('lab_list') }}">浏览 {{ lab_count }} 间实验室</a></div>
+        </div>
+        <div class="prototype-card">
+            <span class="prototype-label">本步边界</span><strong>D06</strong>
+            <p>现在先确认“你是谁”，下一步再决定“你能做什么”。</p>
+            <ul class="check-list"><li>用户记录保存在数据库</li><li>密码不以明文保存</li><li>登录状态跨页面保持</li><li>D07 再加入角色权限</li></ul>
+        </div>
+    </div>
+</section>
+{% endblock %}

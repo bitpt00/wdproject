@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}首页｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="container hero-grid">
+        <div>
+            <p class="eyebrow">D04 · 数据持久化</p>
+            <h1>实验室数据进入 SQLite</h1>
+            <p class="hero-copy">
+                页面不再直接读取 app.py 中的列表，而是通过 SQLAlchemy 模型查询数据库。
+                关闭并重新启动系统后，数据库文件仍然保留。
+            </p>
+            <div class="hero-actions">
+                <a class="button primary" href="{{ url_for('lab_list') }}">查看数据库中的实验室</a>
+                <a class="button secondary" href="{{ url_for('reservation_form') }}">查看数据库选项</a>
+            </div>
+        </div>
+        <div class="prototype-card">
+            <span class="prototype-label">数据库统计</span>
+            <strong>{{ lab_count }} 间</strong>
+            <p>当前数据库中共有 {{ lab_count }} 间实验室，其中 {{ available_count }} 间可预约。</p>
+            <ul class="check-list">
+                <li>SQLite 文件首次启动自动创建</li>
+                <li>Lab 模型定义一条数据的结构</li>
+                <li>页面通过查询读取数据</li>
+                <li>筛选和详情将在下一步加入</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-heading"><p class="eyebrow">数据流</p><h2>页面数据从哪里来</h2></div>
+        <div class="feature-grid">
+            <article class="feature-card"><span class="step-number">01</span><h3>models.py</h3><p>定义 labs 表的字段和实验室对象。</p><span class="state available">数据结构</span></article>
+            <article class="feature-card"><span class="step-number">02</span><h3>campus_lab.db</h3><p>在 instance 文件夹中长期保存数据。</p><span class="state prototype">数据文件</span></article>
+            <article class="feature-card"><span class="step-number">03</span><h3>select(Lab)</h3><p>路由查询数据，再交给模板显示。</p><span class="state later">数据读取</span></article>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}首页｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="container hero-grid">
+        <div>
+            <p class="eyebrow">校园实验资源统一预约</p>
+            <h1>校园实验室预约与审批系统</h1>
+            <p class="hero-copy">
+                学生查询实验室并提交预约，教师处理审批，管理员维护实验室状态。
+                学生预约、教师审批、管理员维护三条业务线已经集成，并通过端到端验收测试。
+            </p>
+            <div class="hero-actions">
+                <a class="button primary" href="{{ url_for('lab_list') }}">浏览实验室</a>
+                {% if g.user %}
+                <a class="button secondary" href="{{ url_for('dashboard') }}">进入我的工作台</a>
+                {% else %}
+                <a class="button secondary" href="{{ url_for('login') }}">使用演示账号登录</a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="prototype-card">
+            <span class="prototype-label">当前版本</span>
+            <strong>{{ app_version }}</strong>
+            <p>这是课程手工开发阶段的完整发布基线，可从三个角色体验系统全过程。</p>
+            <ul class="check-list">
+                <li>学生：查询、提交、查看、取消</li>
+                <li>教师：查看待办、通过、驳回</li>
+                <li>管理员：启用和停用实验室</li>
+                <li>版本页、健康检查和验收测试齐备</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-heading">
+            <p class="eyebrow">主要业务</p>
+            <h2>系统准备支持的三类操作</h2>
+        </div>
+        <div class="feature-grid">
+            <article class="feature-card">
+                <span class="step-number">01</span>
+                <h3>查询实验室</h3>
+                <p>按关键词和状态筛选，查看实验室的完整信息。</p>
+                <span class="state available">已有 {{ lab_count }} 间实验室</span>
+            </article>
+            <article class="feature-card">
+                <span class="step-number">02</span>
+                <h3>提交预约</h3>
+                <p>选择实验室、日期和时间，填写用途及参加人数。</p>
+                <span class="state available">学生预约闭环已完成</span>
+            </article>
+            <article class="feature-card">
+                <span class="step-number">03</span>
+                <h3>审批与管理</h3>
+                <p>教师审批申请，管理员维护实验室的可用状态。</p>
+                <span class="state available">三种角色全部可用</span>
+            </article>
+        </div>
+    </div>
+</section>
+{% endblock %}

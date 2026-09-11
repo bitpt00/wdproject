@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}校园实验室预约系统{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="version-strip">
+        开发教学检查点 {{ app_version }} · 实验室数据已经进入 SQLite
+    </div>
+
+    <header class="site-header">
+        <div class="container header-inner">
+            <a class="brand" href="{{ url_for('index') }}">
+                <span class="brand-mark">L</span>
+                <span><strong>校园实验室</strong><small>预约与审批系统</small></span>
+            </a>
+            <nav class="main-nav" aria-label="主要导航">
+                <a class="{{ 'active' if request.endpoint == 'index' else '' }}" href="{{ url_for('index') }}">首页</a>
+                <a class="{{ 'active' if request.endpoint == 'lab_list' else '' }}" href="{{ url_for('lab_list') }}">实验室</a>
+                <a class="{{ 'active' if request.endpoint == 'reservation_form' else '' }}" href="{{ url_for('reservation_form') }}">预约申请</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>{% block content %}{% endblock %}</main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <span>校园实验室预约与审批系统</span><span>{{ app_version }}</span>
+        </div>
+    </footer>
+</body>
+</html>

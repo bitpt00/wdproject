@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}页面不存在｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="error-page">
+    <div class="container error-card">
+        <span class="error-code">404</span>
+        <h1>没有找到这个页面</h1>
+        <p>网址可能输入有误，或者这条数据已经不存在。</p>
+        <a class="button primary" href="{{ url_for('index') }}">返回首页</a>
+    </div>
+</section>
+{% endblock %}

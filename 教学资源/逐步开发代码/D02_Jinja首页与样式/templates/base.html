@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}校园实验室预约系统{% endblock %}</title>
+    <!-- url_for 会生成 static/style.css 的正确网址。 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="version-strip">
+        开发教学检查点 {{ checkpoint }} · 现在只有首页
+    </div>
+
+    <header class="site-header">
+        <div class="container header-inner">
+            <a class="brand" href="{{ url_for('index') }}">
+                <span class="brand-mark">L</span>
+                <span>
+                    <strong>校园实验室</strong>
+                    <small>预约与审批系统</small>
+                </span>
+            </a>
+            <nav class="main-nav" aria-label="主要导航">
+                <a class="active" href="{{ url_for('index') }}">首页</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- 子页面把自己的主要内容放入 content 区域。 -->
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <span>校园实验室预约与审批系统</span>
+            <span>{{ checkpoint }}</span>
+        </div>
+    </footer>
+</body>
+</html>

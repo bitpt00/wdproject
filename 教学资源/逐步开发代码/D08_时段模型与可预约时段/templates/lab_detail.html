@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ lab.name }}｜校园实验室预约系统{% endblock %}
+{% block content %}
+<section class="page-heading"><div class="container"><a class="back-link" href="{{ url_for('lab_list') }}">← 返回实验室列表</a><p class="eyebrow">LAB-{{ "%03d"|format(lab.id) }}</p><h1>{{ lab.name }}</h1><p>{{ lab.description }}</p></div></section>
+<section class="section compact-top"><div class="container detail-layout">
+<article class="detail-card"><div class="lab-card-top"><h2>实验室信息</h2><span class="status {{ 'open' if lab.is_available else 'closed' }}">{{ lab.status }}</span></div><dl class="detail-list"><div><dt>位置</dt><dd>{{ lab.location }}</dd></div><div><dt>可容纳人数</dt><dd>{{ lab.capacity }}人</dd></div><div><dt>主要设备</dt><dd>{{ lab.equipment }}</dd></div></dl>
+<h2 class="subheading">开放时段</h2><div class="slot-list">{% for slot in time_slots %}<div class="slot-row"><div><strong>{{ slot.date_label }}</strong><span>{{ slot.time_label }}</span></div>{% if slot.is_available %}<span class="state available">可预约 · D09 开放提交</span>{% else %}<span class="state later">不可预约</span>{% endif %}</div>{% else %}<p class="text-muted">暂时没有开放时段。</p>{% endfor %}</div></article>
+<aside class="stage-panel"><span class="prototype-label">D08 当前边界</span><h2>先看见资源，再提交申请</h2><p>本步只建立 TimeSlot 并显示时段。下一步才会出现“选择时段”按钮和预约表单。</p></aside>
+</div></section>
+{% endblock %}

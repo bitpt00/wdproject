@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}校园实验室预约系统{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="version-strip">
+        开发教学版 {{ app_version }} · 管理员与发布检查
+    </div>
+
+    <header class="site-header">
+        <div class="container header-inner">
+            <a class="brand" href="{{ url_for('index') }}">
+                <span class="brand-mark">L</span>
+                <span>
+                    <strong>校园实验室</strong>
+                    <small>预约与审批系统</small>
+                </span>
+            </a>
+            <nav class="main-nav" aria-label="主要导航">
+                <a class="{{ 'active' if request.endpoint == 'index' else '' }}" href="{{ url_for('index') }}">首页</a>
+                <a class="{{ 'active' if request.endpoint in ['lab_list', 'lab_detail'] else '' }}" href="{{ url_for('lab_list') }}">实验室</a>
+                {% if g.user %}
+                <a class="{{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">工作台</a>
+                {% if g.user.role == 'student' %}
+                <a class="{{ 'active' if request.endpoint in ['my_bookings', 'booking_detail', 'reserve'] else '' }}" href="{{ url_for('my_bookings') }}">我的预约</a>
+                {% elif g.user.role == 'approver' %}
+                <a class="{{ 'active' if request.endpoint in ['approvals', 'approval_detail'] else '' }}" href="{{ url_for('approvals') }}">预约审批</a>
+                {% elif g.user.role == 'admin' %}
+                <a class="{{ 'active' if request.endpoint == 'admin_labs' else '' }}" href="{{ url_for('admin_labs') }}">实验室管理</a>
+                {% endif %}
+                {% endif %}
+            </nav>
+            <div class="user-area">
+                {% if g.user %}
+                <span class="user-chip"><strong>{{ g.user.display_name }}</strong><small>{{ g.user.role_name }}</small></span>
+                <form class="inline-form" method="post" action="{{ url_for('logout') }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <button class="text-button" type="submit">退出</button>
+                </form>
+                {% else %}
+                <a class="button small" href="{{ url_for('login') }}">登录</a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="container flash-stack">
+            {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <span>校园实验室预约与审批系统</span>
+            <a href="{{ url_for('version_info') }}">版本与运行信息 · {{ app_version }}</a>
+        </div>
+    </footer>
+</body>
+</html>

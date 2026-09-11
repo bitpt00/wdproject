@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}预约审批｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div class="container">
+        <p class="eyebrow">审批教师工作区</p>
+        <h1>预约审批</h1>
+        <p>核对申请内容，在待审批、已处理和全部记录之间切换。</p>
+    </div>
+</section>
+
+<section class="section compact-top">
+    <div class="container">
+        <nav class="status-tabs" aria-label="审批状态筛选">
+            <a class="{{ 'active' if selected_status == 'PENDING' else '' }}" href="{{ url_for('approvals', status='PENDING') }}">待审批</a>
+            <a class="{{ 'active' if selected_status == 'APPROVED' else '' }}" href="{{ url_for('approvals', status='APPROVED') }}">已通过</a>
+            <a class="{{ 'active' if selected_status == 'REJECTED' else '' }}" href="{{ url_for('approvals', status='REJECTED') }}">已驳回</a>
+            <a class="{{ 'active' if selected_status == 'ALL' else '' }}" href="{{ url_for('approvals', status='ALL') }}">全部</a>
+        </nav>
+
+        <div class="result-summary">当前列表共 <strong>{{ bookings|length }}</strong> 条申请</div>
+        <div class="booking-list">
+            {% for booking in bookings %}
+            <article class="booking-row">
+                <div>
+                    <span class="booking-no">{{ booking.booking_no }} · {{ booking.user.display_name }}</span>
+                    <h2>{{ booking.time_slot.lab.name }}</h2>
+                    <p>{{ booking.time_slot.date_label }} · {{ booking.time_slot.time_label }} · {{ booking.attendee_count }}人</p>
+                </div>
+                <div class="booking-actions">
+                    <span class="status {{ booking.status_class }}">{{ booking.status_label }}</span>
+                    <a class="text-link" href="{{ url_for('approval_detail', booking_id=booking.id) }}">审核申请</a>
+                </div>
+            </article>
+            {% else %}
+            <div class="empty-state"><h2>当前没有申请</h2><p>学生提交后会出现在这里。</p></div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

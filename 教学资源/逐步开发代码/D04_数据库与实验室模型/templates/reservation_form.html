@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}预约申请｜校园实验室预约系统{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div class="container">
+        <p class="eyebrow">D04 · 数据库选项</p>
+        <h1>填写实验室预约信息</h1>
+        <p>下拉选项来自 SQLite，并且自动排除了维护中的实验室；预约仍不会保存。</p>
+    </div>
+</section>
+
+<section class="section compact-top">
+    <div class="container form-layout">
+        <form class="reservation-form" aria-label="实验室预约表单">
+            <div class="form-row">
+                <label for="lab">实验室</label>
+                <select id="lab" name="lab">
+                    <option value="">请选择实验室</option>
+                    {% for lab in labs %}
+                    <option value="{{ lab.id }}" {{ 'selected' if selected_lab_id == lab.id else '' }}>{{ lab.name }}（{{ lab.location }}）</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-columns">
+                <div class="form-row"><label for="date">预约日期</label><input id="date" name="date" type="date"></div>
+                <div class="form-row"><label for="attendees">参加人数</label><input id="attendees" name="attendees" type="number" min="1" placeholder="例如：20"></div>
+            </div>
+            <div class="form-columns">
+                <div class="form-row"><label for="start-time">开始时间</label><input id="start-time" name="start_time" type="time"></div>
+                <div class="form-row"><label for="end-time">结束时间</label><input id="end-time" name="end_time" type="time"></div>
+            </div>
+            <div class="form-row"><label for="purpose">使用目的</label><textarea id="purpose" name="purpose" rows="4" placeholder="说明课程、实验或活动内容"></textarea></div>
+            <button class="button primary full" type="button" disabled>提交预约（后续版本开放）</button>
+        </form>
+        <aside class="stage-panel">
+            <span class="prototype-label">D04 完成边界</span>
+            <h2>本步只完成持久化</h2>
+            <div class="stage-item done"><strong>已经完成</strong><p>数据库连接、Lab 模型、建表、种子数据和基础查询。</p></div>
+            <div class="stage-item next"><strong>D05</strong><p>增加关键词筛选、状态筛选和实验室详情。</p></div>
+            <div class="stage-item later"><strong>后续版本</strong><p>登录之后再实现真正的预约提交。</p></div>
+        </aside>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}登录｜校园实验室预约系统{% endblock %}
+{% block content %}
+<section class="section auth-section">
+    <div class="container auth-layout">
+        <form class="reservation-form" method="post" action="{{ url_for('login') }}">
+            <p class="eyebrow">D06 · 身份验证</p><h1>登录系统</h1>
+            <p class="form-intro">本步先观察账号、密码和会话。三个账号登录后进入同一种个人页面。</p>
+            <div class="form-row"><label for="username">账号</label><input id="username" name="username" autocomplete="username" required autofocus></div>
+            <div class="form-row"><label for="password">密码</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
+            <button class="button primary full" type="submit">登录</button>
+        </form>
+        <aside class="stage-panel">
+            <span class="prototype-label">课堂演示账号</span><h2>任选一个账号</h2>
+            <div class="demo-account"><strong>20260001</strong><span>学生账号</span></div>
+            <div class="demo-account"><strong>T1001</strong><span>教师账号</span></div>
+            <div class="demo-account"><strong>A001</strong><span>管理员账号</span></div>
+            <p class="demo-password">统一密码：<strong>123456</strong></p>
+        </aside>
+    </div>
+</section>
+{% endblock %}

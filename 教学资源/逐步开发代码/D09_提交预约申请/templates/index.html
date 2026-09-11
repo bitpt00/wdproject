@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}首页｜校园实验室预约系统{% endblock %}
+{% block content %}<section class="hero"><div class="container hero-grid"><div><p class="eyebrow">D09 · 写入业务数据</p><h1>学生可以提交一条预约</h1><p class="hero-copy">选择开放时段，填写用途、人数和联系方式，系统校验后生成预约编号并把 Booking 写入 SQLite。</p><div class="hero-actions"><a class="button primary" href="{{ url_for('lab_list') }}">选择实验室和时段</a>{% if not g.user %}<a class="button secondary" href="{{ url_for('login') }}">先登录学生账号</a>{% endif %}</div></div><div class="prototype-card"><span class="prototype-label">本步边界</span><strong>D09</strong><p>提交后直接显示这条预约详情。</p><ul class="check-list"><li>预约属于当前学生</li><li>预约连接一个具体时段</li><li>初始状态为待审批</li><li>D10 再加入列表和取消</li></ul></div></div></section>{% endblock %}
