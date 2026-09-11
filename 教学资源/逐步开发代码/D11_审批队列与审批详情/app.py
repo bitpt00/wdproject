@@ -144,6 +144,45 @@ def upgrade_database_schema():
             for name, data_type in missing:
                 connection.execute(text(f"ALTER TABLE bookings ADD COLUMN {name} {data_type}"))
 
+    # D10还没有状态历史表。升级时为旧预约补建已有状态，
+    # 这样保留业务数据的同时，D11之后的时间线也是完整的。
+    existing_transitions = {
+        (row.booking_id, row.to_status)
+        for row in db.session.execute(
+            select(BookingHistory.booking_id, BookingHistory.to_status)
+        )
+    }
+    added_history = False
+    for booking in db.session.scalars(select(Booking)).all():
+        if (booking.id, "PENDING") not in existing_transitions:
+            db.session.add(
+                BookingHistory(
+                    booking=booking,
+                    actor_id=booking.user_id,
+                    from_status=None,
+                    to_status="PENDING",
+                    note="学生提交预约申请。",
+                    created_at=booking.created_at,
+                )
+            )
+            added_history = True
+
+        if booking.status == "CANCELLED" and (booking.id, "CANCELLED") not in existing_transitions:
+            db.session.add(
+                BookingHistory(
+                    booking=booking,
+                    actor_id=booking.user_id,
+                    from_status="PENDING",
+                    to_status="CANCELLED",
+                    note="学生取消预约。",
+                    created_at=booking.cancelled_at or booking.created_at,
+                )
+            )
+            added_history = True
+
+    if added_history:
+        db.session.commit()
+
 
 def login_required(view):
     @wraps(view)
